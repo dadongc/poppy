@@ -1,0 +1,39 @@
+infra:
+  relational:
+    driver: sqlite
+    path: data/sqlite/poppy.db
+  vector:
+    driver: sqlite-vec
+  keyword:
+    driver: sqlite-fts5
+  blob:
+    driver: filesystem
+    root: data/artifacts
+  cache:
+    driver: memory
+    max_size: 1000
+  eventbus:
+    driver: in_process
+
+llm:
+  providers:
+    deepseek:
+      api_key: "${DEEPSEEK_API_KEY}"
+      base_url: "${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}"
+  default_model: deepseek-chat
+
+embedding:
+  provider: deepseek
+  model: text-embedding-3-small
+  dim: 1536
+
+agent:
+  registry_path: src/agents
+  skills_path: src/skills
+
+gateway:
+  host: "0.0.0.0"
+  port: 8000
+  api_key: ""
+  cors_origins: ["*"]
+reranker: null

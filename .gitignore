@@ -206,6 +206,9 @@ tempCodeRunnerFile.py
 # Ruff stuff:
 .ruff_cache/
 
+# Claude Code
+.claude/
+
 # PyPI configuration file
 .pypirc
 

@@ -1,0 +1,45 @@
+infra:
+  relational:
+    driver: postgres
+    dsn: "${DATABASE_URL}"
+    pool_min: 2
+    pool_max: 20
+  vector:
+    driver: pgvector
+  keyword:
+    driver: pg_tsvector
+  blob:
+    driver: oss
+    endpoint: "${OSS_ENDPOINT}"
+    bucket: "${OSS_BUCKET}"
+    access_key_id: "${OSS_ACCESS_KEY_ID}"
+    access_key_secret: "${OSS_ACCESS_KEY_SECRET}"
+  cache:
+    driver: redis
+    url: "${REDIS_URL}"
+  eventbus:
+    driver: in_process
+
+llm:
+  providers:
+    deepseek:
+      api_key: "${DEEPSEEK_API_KEY}"
+      base_url: "${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}"
+  default_model: deepseek-chat
+
+agent:
+  registry_path: src/agents
+  skills_path: src/skills
+
+gateway:
+  host: "0.0.0.0"
+  port: 8000
+  api_key: "${API_KEY}"
+  cors_origins: []
+
+embedding:
+  provider: openai
+  model: text-embedding-3-large
+  dim: 3072
+
+reranker: null
