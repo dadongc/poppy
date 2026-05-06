@@ -26,9 +26,9 @@ llm:
   default_model: deepseek-chat
 
 embedding:
-  provider: deepseek
-  model: text-embedding-3-small
-  dim: 1536
+  provider: bge
+  model: BAAI/bge-small-zh-v1.5
+  dim: 512
 
 agent:
   registry_path: src/agents

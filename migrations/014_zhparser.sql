@@ -1,0 +1,6 @@
+CREATE EXTENSION IF NOT EXISTS zhparser;
+CREATE TEXT SEARCH CONFIGURATION zhcfg (PARSER = zhparser);
+ALTER TEXT SEARCH CONFIGURATION zhcfg ADD MAPPING FOR n,v,a,i,e,l WITH simple;
+
+INSERT INTO _schema_meta(version, description)
+VALUES (14, 'zhparser') ON CONFLICT DO NOTHING;

@@ -10,7 +10,7 @@ infra:
     pool_max: 20
   vector:
     backend: pgvector
-    dim: 3072
+    dim: 512
     metric: cosine
   keyword:
     backend: pg_tsvector
@@ -50,8 +50,8 @@ gateway:
   cors_origins: []
 
 embedding:
-  provider: openai
-  model: text-embedding-3-large
-  dim: 3072
+  provider: bge
+  model: BAAI/bge-small-zh-v1.5
+  dim: 512
 
 reranker: null

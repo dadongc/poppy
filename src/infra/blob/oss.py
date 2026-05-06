@@ -36,6 +36,9 @@ class OssBackend:
         return await loop.run_in_executor(self._executor, lambda: fn(*args, **kw))
 
     def _full_key(self, key: str) -> str:
+        # Skip if key already starts with prefix (from round-trip URI extraction)
+        if self._prefix and key.startswith(self._prefix + "/"):
+            return key
         return f"{self._prefix}/{key}".lstrip("/")
 
     async def put(self, key: str, data: bytes, mime_type: str = "application/octet-stream") -> str:

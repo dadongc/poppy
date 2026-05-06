@@ -301,8 +301,16 @@ class ArtifactStore:
             row["content_hash"],
         )
 
-    def _extract_key_from_uri(self, uri: str) -> str:
-        return uri.split("://", 1)[1] if "://" in uri else uri
+    @staticmethod
+    def _extract_key_from_uri(uri: str) -> str:
+        if "://" not in uri:
+            return uri
+        path = uri.split("://", 1)[1]
+        # oss://bucket/key → key
+        if uri.startswith("oss://"):
+            return path.split("/", 1)[1] if "/" in path else path
+        # fs:///absolute/path → /absolute/path
+        return path
 
     @staticmethod
     def _row_to_artifact(row: dict[str, Any]) -> Artifact:

@@ -209,11 +209,12 @@ class MemoryService:
         # update recall stats
         if records:
             ids = [r.memory_id for r in records]
+            placeholders = ", ".join(["?"] * len(ids))
             await self._store.execute(
-                """UPDATE memory_records SET last_recalled_at = ?, recall_count = recall_count + 1
-                   WHERE memory_id IN (SELECT value FROM json_each(?))""",
+                f"""UPDATE memory_records SET last_recalled_at = ?, recall_count = recall_count + 1
+                   WHERE memory_id IN ({placeholders})""",
                 now_ts(),
-                json.dumps(ids),
+                *ids,
             )
 
         return records
@@ -314,17 +315,18 @@ class MemoryService:
         self, existing: MemoryRecord, new_content: str, importance: float
     ) -> MemoryRecord:
         merged = f"{existing.content}\n{new_content}"
+        new_imp = max(existing.importance, importance)
         ts = now_ts()
         await self._store.execute(
-            """UPDATE memory_records SET content = ?, importance = MAX(importance, ?),
+            """UPDATE memory_records SET content = ?, importance = ?,
                updated_at = ? WHERE memory_id = ?""",
             merged,
-            importance,
+            new_imp,
             ts,
             existing.memory_id,
         )
         existing.content = merged
-        existing.importance = max(existing.importance, importance)
+        existing.importance = new_imp
         return existing
 
     async def _check_conflicts(

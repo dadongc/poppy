@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from dotenv import load_dotenv
 from pydantic import BaseModel
 
 
@@ -70,6 +71,7 @@ def _walk(obj):
 
 
 def load_config(path: str | Path) -> AppConfig:
+    load_dotenv()  # 自动加载项目根 .env
     with open(path) as f:
         raw: Any = yaml.safe_load(f)
     data = _walk(raw)

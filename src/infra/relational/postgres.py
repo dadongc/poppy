@@ -1,12 +1,56 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
 import asyncpg
+
+
+def _pg_sql(sql: str) -> str:
+    """Convert SQLite-style ? placeholders to PostgreSQL $1, $2, ..."""
+    parts: list[str] = []
+    counter = 0
+    in_string = False
+    for ch in sql:
+        if ch == "'":
+            in_string = not in_string
+        if ch == "?" and not in_string:
+            counter += 1
+            parts.append(f"${counter}")
+        else:
+            parts.append(ch)
+    return "".join(parts)
+
+
+_TS_FLOOR = 1_000_000_000.0  # Unix timestamps are > 2001; scores/counts are not
+
+
+def _pg_params(params: tuple[Any, ...]) -> tuple[Any, ...]:
+    """Convert float Unix timestamps to datetime for PostgreSQL TIMESTAMPTZ columns."""
+    return tuple(
+        datetime.datetime.fromtimestamp(p, tz=datetime.timezone.utc)
+        if isinstance(p, float) and p > _TS_FLOOR
+        else p
+        for p in params
+    )
+
+
+def _pg_row(row: dict | None) -> dict | None:
+    """Convert datetime values back to float Unix timestamps for service compatibility."""
+    if row is None:
+        return None
+    return {
+        k: v.timestamp() if isinstance(v, datetime.datetime) else v
+        for k, v in row.items()
+    }
+
+
+def _pg_rows(rows: list[dict]) -> list[dict]:
+    return [_pg_row(r) for r in rows]  # type: ignore[arg-type]
 
 
 class PostgresStore:
@@ -69,7 +113,7 @@ class PostgresStore:
     async def execute(self, sql: str, *params: Any) -> int:
         assert self._pool is not None
         async with self._pool.acquire() as conn:
-            result = await conn.execute(sql, *params)
+            result = await conn.execute(_pg_sql(sql), *_pg_params(params))
             try:
                 return int(result.split()[-1])
             except (ValueError, IndexError):
@@ -78,14 +122,14 @@ class PostgresStore:
     async def fetch_one(self, sql: str, *params: Any) -> dict | None:
         assert self._pool is not None
         async with self._pool.acquire() as conn:
-            row = await conn.fetchrow(sql, *params)
-            return dict(row) if row else None
+            row = await conn.fetchrow(_pg_sql(sql), *_pg_params(params))
+            return _pg_row(dict(row)) if row else None
 
     async def fetch_all(self, sql: str, *params: Any) -> list[dict]:
         assert self._pool is not None
         async with self._pool.acquire() as conn:
-            rows = await conn.fetch(sql, *params)
-            return [dict(r) for r in rows]
+            rows = await conn.fetch(_pg_sql(sql), *_pg_params(params))
+            return _pg_rows([dict(r) for r in rows])
 
     @asynccontextmanager
     async def transaction(self) -> AsyncIterator[PgTransaction]:
@@ -137,16 +181,16 @@ class PgTransaction:
             await self._tx.commit()
 
     async def execute(self, sql: str, *params: Any) -> int:
-        result = await self._conn.execute(sql, *params)
+        result = await self._conn.execute(_pg_sql(sql), *_pg_params(params))
         try:
             return int(result.split()[-1])
         except (ValueError, IndexError):
             return 0
 
     async def fetch_one(self, sql: str, *params: Any) -> dict | None:
-        row = await self._conn.fetchrow(sql, *params)
-        return dict(row) if row else None
+        row = await self._conn.fetchrow(_pg_sql(sql), *_pg_params(params))
+        return _pg_row(dict(row)) if row else None
 
     async def fetch_all(self, sql: str, *params: Any) -> list[dict]:
-        rows = await self._conn.fetch(sql, *params)
-        return [dict(r) for r in rows]
+        rows = await self._conn.fetch(_pg_sql(sql), *_pg_params(params))
+        return _pg_rows([dict(r) for r in rows])
