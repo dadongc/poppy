@@ -12,29 +12,31 @@ from src.infra.eventbus.inproc import InProcessEventBus
 from src.infra.jobs.pg_jobs import PgJobQueue
 from src.infra.keyword.fts5 import Fts5Index
 from src.infra.keyword.pg_tsvector import PgTsvectorIndex
+from src.infra.protocols import (
+    Cache,
+    EventBus,
+    JobQueue,
+    KeywordIndex,
+    RelationalStore,
+    StorageBackend,
+    VectorIndex,
+)
 from src.infra.relational.migrator import run_migrations
 from src.infra.relational.postgres import PostgresStore
 from src.infra.relational.sqlite import SqliteStore
 from src.infra.vector.pgvector import PgVectorIndex
 from src.infra.vector.sqlite_vec import SqliteVecIndex
 
-# Concrete type aliases — gives IDE proper completions without Protocol overhead.
-Relational = SqliteStore | PostgresStore
-Vector = SqliteVecIndex | PgVectorIndex
-Keyword = Fts5Index | PgTsvectorIndex
-Blob = FilesystemBackend | OssBackend
-Cache = MemoryCache | RedisCache
-
 
 @dataclass(slots=True, kw_only=True)
 class Infra:
-    relational: Relational
-    vector: Vector
-    keyword: Keyword
-    blob: Blob
+    relational: RelationalStore
+    vector: VectorIndex
+    keyword: KeywordIndex
+    blob: StorageBackend
     cache: Cache
-    eventbus: InProcessEventBus
-    jobs: PgJobQueue | None = None
+    eventbus: EventBus
+    jobs: JobQueue | None = None
 
 
 async def build_infra(config: dict, *, run_migrations_flag: bool = True) -> Infra:

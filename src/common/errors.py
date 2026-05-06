@@ -46,6 +46,10 @@ class LLMProviderError(AgentError):
         self.error = error
 
 
+class ConflictError(AgentError):
+    """资源冲突（并发写入、去重、状态冲突）。"""
+
+
 class ToolError(AgentError):
     """工具执行失败。"""
 
