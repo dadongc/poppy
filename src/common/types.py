@@ -64,6 +64,8 @@ class AgentSpec:
     token_budget: int = 50000
     deadline_sec: int = 180
     max_parallel_tools: int = 3
+    max_sub_agent_depth: int = 3
+    max_parallel_sub_agents: int = 5
     source: Literal["registry", "ephemeral", "code"] = "registry"
     source_path: str = ""
     mtime: float = 0.0
@@ -97,6 +99,7 @@ class AgentContext:
     session_id: str = ""
     user_id: str = ""
     trace_id: str = ""
+    depth: int = 0
     spec: AgentSpec | None = None
     user_message: Message | None = None
     extra_inputs: dict = field(default_factory=dict)

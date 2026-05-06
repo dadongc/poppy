@@ -27,6 +27,8 @@ class LLMConfig(BaseModel):
 class AgentConfig(BaseModel):
     registry_path: str
     skills_path: str
+    max_sub_agent_depth: int = 3
+    max_parallel_sub_agents: int = 5
 
 
 class GatewayConfig(BaseModel):

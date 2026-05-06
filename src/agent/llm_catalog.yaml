@@ -1,0 +1,42 @@
+models:
+  deepseek-chat:
+    provider: openai
+    context_window: 128000
+    max_output: 8192
+    supports_tools: true
+    supports_stream: true
+
+  deepseek-reasoner:
+    provider: openai
+    context_window: 128000
+    max_output: 8192
+    supports_tools: false
+    supports_stream: true
+
+  gpt-4o:
+    provider: openai
+    context_window: 128000
+    max_output: 16384
+    supports_tools: true
+    supports_stream: true
+
+  gpt-4o-mini:
+    provider: openai
+    context_window: 128000
+    max_output: 16384
+    supports_tools: true
+    supports_stream: true
+
+  qwen-max:
+    provider: openai
+    context_window: 32768
+    max_output: 8192
+    supports_tools: true
+    supports_stream: true
+
+  doubao-pro-32k:
+    provider: openai
+    context_window: 32768
+    max_output: 4096
+    supports_tools: true
+    supports_stream: true

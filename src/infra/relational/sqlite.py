@@ -38,11 +38,21 @@ class SqliteStore:
                 self._conn.close()
                 self._conn = None
 
+    @staticmethod
+    def _adapt(sql: str, params: tuple) -> tuple[str, tuple]:
+        import re
+        refs = re.findall(r'\$(\d+)', sql)
+        if not refs:
+            return sql, params
+        indices = [int(r) - 1 for r in refs]
+        return re.sub(r'\$(\d+)', '?', sql), tuple(params[i] for i in indices)
+
     async def execute(self, sql: str, *params: Any) -> int:
         async with self._lock:
             assert self._conn is not None
             cur = self._conn.cursor()
-            cur.execute(sql, params)
+            adapted_sql, adapted_params = self._adapt(sql, params)
+            cur.execute(adapted_sql, adapted_params)
             self._conn.commit()
             return cur.rowcount
 
@@ -50,7 +60,8 @@ class SqliteStore:
         async with self._lock:
             assert self._conn is not None
             cur = self._conn.cursor()
-            cur.execute(sql, params)
+            adapted_sql, adapted_params = self._adapt(sql, params)
+            cur.execute(adapted_sql, adapted_params)
             row = cur.fetchone()
             return dict(row) if row else None
 
@@ -58,7 +69,8 @@ class SqliteStore:
         async with self._lock:
             assert self._conn is not None
             cur = self._conn.cursor()
-            cur.execute(sql, params)
+            adapted_sql, adapted_params = self._adapt(sql, params)
+            cur.execute(adapted_sql, adapted_params)
             return [dict(row) for row in cur.fetchall()]
 
     @asynccontextmanager
@@ -86,18 +98,30 @@ class SqliteTransaction:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
+    @staticmethod
+    def _adapt(sql: str, params: tuple) -> tuple[str, tuple]:
+        import re
+        refs = re.findall(r'\$(\d+)', sql)
+        if not refs:
+            return sql, params
+        indices = [int(r) - 1 for r in refs]
+        return re.sub(r'\$(\d+)', '?', sql), tuple(params[i] for i in indices)
+
     async def execute(self, sql: str, *params: Any) -> int:
         cur = self._conn.cursor()
-        cur.execute(sql, params)
+        adapted_sql, adapted_params = self._adapt(sql, params)
+        cur.execute(adapted_sql, adapted_params)
         return cur.rowcount
 
     async def fetch_one(self, sql: str, *params: Any) -> dict | None:
         cur = self._conn.cursor()
-        cur.execute(sql, params)
+        adapted_sql, adapted_params = self._adapt(sql, params)
+        cur.execute(adapted_sql, adapted_params)
         row = cur.fetchone()
         return dict(row) if row else None
 
     async def fetch_all(self, sql: str, *params: Any) -> list[dict]:
         cur = self._conn.cursor()
-        cur.execute(sql, params)
+        adapted_sql, adapted_params = self._adapt(sql, params)
+        cur.execute(adapted_sql, adapted_params)
         return [dict(row) for row in cur.fetchall()]
