@@ -1,19 +1,22 @@
 infra:
   relational:
-    driver: sqlite
+    backend: sqlite
     path: data/sqlite/poppy.db
   vector:
-    driver: sqlite-vec
+    backend: sqlite-vec
+    dim: 1536
   keyword:
-    driver: sqlite-fts5
+    backend: fts5
   blob:
-    driver: filesystem
+    backend: filesystem
     root: data/artifacts
   cache:
-    driver: memory
+    backend: memory
     max_size: 1000
   eventbus:
-    driver: in_process
+    backend: inproc
+    persist: false
+  jobs: null
 
 llm:
   providers:
@@ -36,4 +39,5 @@ gateway:
   port: 8000
   api_key: ""
   cors_origins: ["*"]
+
 reranker: null

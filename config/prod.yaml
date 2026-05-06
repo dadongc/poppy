@@ -1,24 +1,36 @@
 infra:
   relational:
-    driver: postgres
-    dsn: "${DATABASE_URL}"
+    backend: postgres
+    host: "${PG_HOST}"
+    port: ${PG_PORT}
+    database: "${PG_DATABASE}"
+    user: "${PG_USER}"
+    password: "${PG_PASSWORD}"
     pool_min: 2
     pool_max: 20
   vector:
-    driver: pgvector
+    backend: pgvector
+    dim: 3072
+    metric: cosine
   keyword:
-    driver: pg_tsvector
+    backend: pg_tsvector
+    config: zhcfg
   blob:
-    driver: oss
+    backend: oss
     endpoint: "${OSS_ENDPOINT}"
     bucket: "${OSS_BUCKET}"
     access_key_id: "${OSS_ACCESS_KEY_ID}"
     access_key_secret: "${OSS_ACCESS_KEY_SECRET}"
   cache:
-    driver: redis
-    url: "${REDIS_URL}"
+    backend: redis
+    host: "${REDIS_HOST}"
+    port: ${REDIS_PORT}
+    password: "${REDIS_PASSWORD}"
   eventbus:
-    driver: in_process
+    backend: inproc
+    persist: true
+  jobs:
+    backend: pg_jobs
 
 llm:
   providers:
