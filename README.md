@@ -1,126 +1,213 @@
-# Personal AI Assistant —— 架构设计与实施文档
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/Poppy-FF6B35?style=for-the-badge&logo=poetry&logoColor=white">
+    <img alt="Poppy" src="https://img.shields.io/badge/Poppy-FF6B35?style=for-the-badge&logo=poetry&logoColor=white">
+  </picture>
+</p>
 
-> **目标读者**：架构师、后端工程师、代码生成模型（Claude / Codex）
-> **目标用途**：作为项目的 Single Source of Truth，指导从零到一的代码实现
-> **更新策略**：每个模块代码落地后，必须回头校准对应文档；文档与代码不一致 = 文档错
+<p align="center">
+  <strong>个人 AI 助理 — 记忆、工具、多 Agent 协作，端到端可控</strong>
+</p>
 
----
-
-## 文档索引
-
-按"先读全局，再读细节"的顺序编排。
-
-### 一、全局篇
-
-| 文档 | 内容 | 何时读 |
-|---|---|---|
-| 00-overview.md | 整体架构图、分层拓扑、端到端时序、能力清单、设计哲学 | 所有人入门必读 |
-| 01-common-types.md | 跨模块共享数据结构（AgentContext / AgentSpec / Event / Artifact / ToolResult / LLMChunk 等） | 写任何模块前都要读 |
-
-### 二、Infra 层（Phase 1）
-
-| 文档 | 内容 |
-|---|---|
-| 10-infra.md | Protocol 接口契约、PG/Redis/OSS 实现、Schema 演进、Jobs 队列 |
-
-### 三、Service 层（Phase 2）
-
-| 文档 | 内容 |
-|---|---|
-| 20-service.md | SessionService / MemoryService / ArtifactStore / KB / Retriever / EmbeddingGateway |
-
-### 四、Agent 编排层（Phase 3）
-
-| 文档 | 内容 |
-|---|---|
-| 30-agent-runtime.md | Runtime / Orchestrator / BaseAgent / SubAgent / AgentRegistry |
-| 31-context-builder.md | ContextBuilder（7 段 prompt 组装 + 预算裁剪） |
-| 32-tool-executor.md | ToolExecutor（8 步 pipeline + 内建工具） |
-| 33-llm-gateway.md | LLMGateway（统一 chunk 协议 + ModelRouter + retry/fallback） |
-| 34-eventbus-runregistry.md | EventBus + RunRegistry（状态机 + 闭包表） |
-
-### 五、Gateway 层（Phase 4）
-
-| 文档 | 内容 |
-|---|---|
-| 40-gateway.md | FastAPI HTTP API、SSE 推送适配、鉴权、上传、生命周期 |
-
-### 六、实施篇
-
-| 文档 | 内容 |
-|---|---|
-| 90-roadmap.md | **逐模块 TODO + 单测清单**（按 Phase 0~4 自底向上） |
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
+  <img src="https://img.shields.io/badge/tests-398_passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/ruff-clean-000" alt="Lint">
+  <img src="https://img.shields.io/badge/mypy-strict-blue" alt="Type Check">
+</p>
 
 ---
 
-## 项目目录结构（最终态）
+## 这是什么？
+
+Poppy 是一个**单租户个人 AI 助理**。它能：
+
+- 💬 **多轮对话** — 流式 ReAct 循环，实时输出
+- 🧠 **长期记忆** — 自动提取用户偏好与事实，持久化到知识库
+- 🔧 **工具调用** — 14 个内建工具，支持 shell 执行、Python 沙箱、网络搜索等
+- 🤝 **多 Agent 协作** — 主 Agent 派发子 Agent，深度/并发可控
+- 📚 **私域检索** — 用户文档/网页/笔记的向量+关键词混合检索
+- 🎛️ **Skill 热加载** — Markdown 格式的技能文件，安装即用，用户可覆盖内建
+
+---
+
+## 架构总览
 
 ```
-personal-assistant/
-├── pyproject.toml
-├── README.md
-├── config/
-│   ├── default.yaml
-│   ├── dev.yaml
-│   └── prod.yaml
-├── docs/                          # 本目录所有 .md
-├── data/                          # 本地开发用
-│   ├── sqlite/
-│   └── artifacts/
-├── migrations/                    # PG schema 迁移
+                       ┌──────────────────────────┐
+                       │   Client (Web / CLI)     │
+                       └──────────┬───────────────┘
+                  HTTP POST /runs │ SSE /events
+                                  │
+              ┌───────────────────┴────────────────────┐
+              │       Layer 6 · Gateway (FastAPI)       │
+              │   Auth │ RateLimit │ SSE │ Middleware    │
+              └───────────────────┬────────────────────┘
+                                  │
+              ┌───────────────────┴────────────────────┐
+              │       Layer 5 · Runtime (Singleton)     │
+              │   AgentRegistry │ EventBus │ RunRegistry│
+              └───────────────────┬────────────────────┘
+                                  │
+              ┌───────────────────┴────────────────────┐
+              │     Layer 4 · Orchestrator (per-Run)    │
+              └───────────────────┬────────────────────┘
+                                  │
+              ┌───────────────────┴────────────────────┐
+              │       Layer 3 · BaseAgent (ReAct)       │
+              │   perceive → plan → act → observe       │
+              │   ┌──────────┐  ┌───────────────────┐   │
+              │   │ LLMGateway│  │  ToolExecutor     │   │
+              │   └──────────┘  └───────────────────┘   │
+              └───────────────────┬────────────────────┘
+                                  │
+              ┌───────────────────┴────────────────────┐
+              │        Layer 1-2 · Service + Infra      │
+              │   Session │ Memory │ KB │ Retriever     │
+              │   PG │ Redis │ OSS │ Vector │ FTS5     │
+              └────────────────────────────────────────┘
+```
+
+核心循环是 **ReAct**：Agent 感知上下文 → 规划下一步 → 调用 LLM 流式输出 → 执行工具 → 观察结果，循环直到 `final_answer`。
+
+更多细节见 **[架构设计文档](docs/ARCHITECTURE.md)** 和 **[分层设计索引](docs/00-overview.md)**。
+
+---
+
+## 快速开始
+
+```bash
+# 1. 克隆并安装
+git clone <repo-url> && cd poppy
+pip install -e .[dev]
+
+# 2. 配置 API Key
+cp .env.example .env
+# 编辑 .env，至少填写 DEEPSEEK_API_KEY
+
+# 3. 初始化数据库
+python -m src.infra.relational.migrator config/dev.yaml
+
+# 4. 命令行对话
+python -m src.runtime.cli --agent default --message "你好"
+
+# 5. 启动 Web 聊天界面
+python -m src.gateway.app
+# 访问 http://localhost:8000/chat
+```
+
+---
+
+## 内建工具
+
+Poppy 出厂自带 14 个工具，覆盖日常 AI 助理场景：
+
+| 工具 | 用途 | 特色 |
+|---|---|---|
+| `bash_exec` | 执行 bash 命令 | 安全沙箱，危险命令拦截，30s 超时 |
+| `python_exec` | Python 代码执行 | AST 安全沙箱，禁止文件/网络访问 |
+| `web_search` | 互联网搜索 | Tavily API，支持 advanced 深度搜索 |
+| `web_fetch` | 抓取网页内容 | HTML 自动清洗为纯文本，8KB 上限 |
+| `calculator` | 数学计算 | 安全 AST 求值，支持三角函数/对数 |
+| `datetime` | 日期时间 | 时区转换、时间差计算 |
+| `final_answer` | 终止本轮对话 | 干净结束 ReAct 循环 |
+| `delegate_task` | 派发子 Agent | 并发/深度限制，预算隔离 |
+| `load_skill` | 加载技能 | 动态切换 Agent 行为模式 |
+| `list_skills` | 列出所有技能 | 支持按来源过滤 (builtin/user) |
+| `skill_install` | 安装技能 | 从 URL 下载 .md 技能文件 |
+| `read_artifact` | 读取大文件 | 返回 artifact 内容 |
+| `remember` | 保存记忆 | 写入长期记忆库 |
+| `forget` | 删除记忆 | 从记忆库中移除 |
+
+---
+
+## Skill 系统
+
+Skill 是以 **Markdown 文件** 定义的 Agent 行为扩展。双路径加载：
+
+```
+src/skills/           ← 内建技能（随项目发布）
+src/skills-user/      ← 用户技能（你安装的，同名覆盖内建）
+```
+
+**安装方式**：通过聊天界面让 Agent 执行 `skill_install` 工具，指定 URL 即可。
+
+```
+用户: 帮我安装 skill-creator 技能
+Agent: → 自动下载 skill-creator.md → 写入 src/skills-user/ → 安装完成
+```
+
+---
+
+## 项目结构
+
+```
+poppy/
+├── config/                # 环境配置 (dev.yaml / prod.yaml)
+├── docs/                  # 架构设计文档 (ARCHITECTURE.md + 系列)
+├── migrations/            # PostgreSQL 迁移脚本
 ├── src/
-│   ├── common/                    # 共享类型与工具
-│   ├── infra/                     # Phase 1
-│   ├── service/                   # Phase 2
-│   ├── agent/                     # Phase 3
-│   ├── runtime/                   # Phase 3
-│   ├── gateway/                   # Phase 4
-│   ├── tools/                     # 业务工具
-│   ├── skills/                    # SKILL.md 集合
-│   └── agents/                    # AgentSpec 配置
+│   ├── common/            # 共享类型 (types.py)、错误、时钟、ID 生成
+│   ├── infra/             # 基础设施 — PG/Redis/OSS/向量/事件总线
+│   ├── service/           # 业务服务 — Session/Memory/KB/Embedding
+│   ├── agent/             # Agent 核心 — ReAct/LLM Gateway/Tool Executor
+│   ├── runtime/           # 运行时 — Orchestrator/RunRegistry/AgentRegistry/CLI
+│   ├── gateway/           # HTTP 层 — FastAPI/SSE/Routes
+│   ├── tools/             # 工具协议 + 14 个内建工具
+│   ├── skills/            # 内建 Skill 定义 (.md)
+│   └── agents/            # AgentSpec YAML 配置
 ├── tests/
-│   ├── unit/
-│   ├── integration/
-│   └── e2e/
-└── cli/
-    └── main.py
+│   ├── unit/              # 单元测试
+│   └── integration/       # 集成测试
+└── pyproject.toml
 ```
 
 ---
 
-## Phase 划分
+## 技术栈
 
-| Phase | 内容 | 验收 |
-|---|---|---|
-| **0** | 项目骨架 + 共享类型 | `pytest tests/unit/common` 全绿 |
-| **1** | Infra 层 | 单元测试 + 真实 PG/Redis/OSS 集成测试通过 |
-| **2** | Service 层 | 单测 + 集成测试通过 |
-| **3** | Agent 编排层 | CLI 模式下能跑通完整 ReAct loop |
-| **4** | Gateway 层 | HTTP + SSE 端到端 e2e 测试通过 |
-| **5** | 内建 Tools / Skills | 飞书集成、Web 搜索等业务能力上线 |
+| 层 | 技术 |
+|---|---|
+| 语言 | Python 3.11+ (full async, strict typing) |
+| Web 框架 | FastAPI + Uvicorn |
+| 流式推送 | Server-Sent Events (SSE) |
+| LLM 接入 | OpenAI-compatible (DeepSeek/豆包/通义统一适配) |
+| 主数据库 | PostgreSQL + pgvector (向量) + pg_jieba (全文) |
+| 开发数据库 | SQLite + FTS5 + sqlite-vec |
+| 缓存 | Redis (prod) / MemoryCache (dev) |
+| 对象存储 | 阿里云 OSS (prod) / 本地文件 (dev) |
+| 搜索 API | Tavily |
 
 ---
 
 ## 设计哲学
 
-1. **分层清晰**：六层（Gateway / Runtime / Orchestrator / Agent / Service / Infra）职责单一
-2. **事件驱动**：跨模块通信走 EventBus，强解耦
-3. **协议统一**：核心数据结构跨模块复用
-4. **per-Run 隔离**：AgentContext 携带运行时状态，SubAgent 隔离预算和取消
-5. **延迟绑定**：AgentSpec 静态、AgentContext 运行时构造，Tool/Skill 动态加载
-6. **存储统一**：PG 一库三用（关系+向量+全文），Redis 多用途，OSS 单一职责
-7. **异步友好**：全 asyncio + 流式 + 后台 Worker
-8. **演进路径明确**：用最简方案撑住单实例，有瓶颈再升级
+- **分层清晰** — 六层隔离，职责单一，依赖单向
+- **事件驱动** — 跨模块通信全部走 EventBus，SSE 透明转发
+- **per-Run 隔离** — 每个请求独立的 AgentContext，预算和取消信号隔开
+- **延迟绑定** — AgentSpec 静态配置，运行时构造 Context，Tool/Skill 动态加载
+- **先跑通再优化** — Infra 用 SQLite 即可开发，换 PG 只需改配置
 
 ---
 
-## 编码约定
+## 开发
 
-- **Python 版本**：3.11+
-- **类型提示**：所有公开 API 必须带类型；`from __future__ import annotations` 默认开启
-- **数据结构**：优先用 `@dataclass(slots=True, kw_only=True)`；只有 API 边界用 Pydantic
-- **异步**：业务层全 async；同步代码只允许在纯 CPU 计算函数
-- **依赖注入**：通过 `Runtime` 单例 + 构造函数注入，禁止全局变量
-- **日志**：`structlog`，结构化字段；禁止 print
-- **测试**：`pytest` + `pytest-asyncio`
-- **格式化**：`ruff` + `ruff format`；行宽 100
+```bash
+# 运行所有测试
+pytest tests/ -v
+
+# 类型检查
+mypy src/
+
+# Lint
+ruff check src/ tests/
+ruff format src/ tests/ --check
+
+# 启动开发服务
+PYTHONPATH=. python -m src.gateway.app
+```
+
+---
+
+**[→ 完整架构文档](docs/ARCHITECTURE.md)** &nbsp;|&nbsp; **[→ 设计文档索引](docs/00-overview.md)**
