@@ -27,6 +27,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 .msg.tool { align-self: flex-start; background: #1a1a2e; border: 1px dashed #333; font-size: 12px; color: #aaa; }
 .msg.tool.hidden { display: none; }
 .msg .label { font-size: 11px; color: #4ecca3; margin-bottom: 4px; }
+#step-indicator { font-size: 12px; color: #666; padding: 2px 0; text-align: center;
+                  transition: opacity 0.3s; }
+#step-indicator.finished { opacity: 0; }
 #tool-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #888; cursor: pointer; user-select: none; }
 #tool-toggle input { cursor: pointer; }
 #input-area { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid #0f3460; background: #16213e; }
@@ -50,6 +53,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     <span class="status" id="status">connecting...</span>
   </div>
 </div>
+<div id="step-indicator"></div>
 <div id="messages"></div>
 <div id="input-area">
   <textarea id="input" placeholder="输入消息，Enter 发送，Shift+Enter 换行" rows="1"></textarea>
@@ -72,6 +76,15 @@ let showTools = false;
 function setStatus(text, online) {
   statusEl.textContent = text;
   statusEl.className = 'status' + (online ? ' online' : '');
+}
+
+let stepCurrent = 0;
+let stepMax = 0;
+
+function updateStepIndicator(text, finished) {
+  const el = document.getElementById('step-indicator');
+  el.textContent = text;
+  el.className = finished ? 'finished' : '';
 }
 
 function toggleTools(show) {
@@ -151,6 +164,28 @@ async function send() {
       msgsEl.scrollTop = msgsEl.scrollHeight;
     });
 
+    es.addEventListener('step.started', e => {
+      const data = JSON.parse(e.data);
+      const step = data.payload.step || 0;
+      stepCurrent = step;
+      if (stepMax) {
+        updateStepIndicator('⏳ Step ' + step + '/' + stepMax, false);
+      } else {
+        updateStepIndicator('⏳ Step ' + step, false);
+      }
+    });
+
+    es.addEventListener('step.completed', e => {
+      const data = JSON.parse(e.data);
+      const step = data.payload.step || stepCurrent;
+      stepCurrent = step;
+      if (!stepMax && data.payload.max_steps) stepMax = data.payload.max_steps;
+      const tools = (data.payload.tool_calls || []);
+      if (tools.length) {
+        updateStepIndicator('✅ Step ' + step + (stepMax ? '/' + stepMax : '') + ': ' + tools.join(', '), false);
+      }
+    });
+
     es.addEventListener('llm.tool_call_start', e => {
       const data = JSON.parse(e.data);
       addMsg('tool', ['Tool: ' + (data.payload.name || '?'), JSON.stringify(data.payload.arguments || {}, null, 2)]);
@@ -173,6 +208,8 @@ async function send() {
       currentMsg = null;
       currentRunId = '';
       sendBtn.disabled = false;
+      updateStepIndicator('', true);
+      stepCurrent = 0; stepMax = 0;
       setStatus('ready', true);
       inputEl.focus();
     });
@@ -182,6 +219,8 @@ async function send() {
       currentMsg = null;
       currentRunId = '';
       sendBtn.disabled = false;
+      updateStepIndicator('', true);
+      stepCurrent = 0; stepMax = 0;
       addMsg('assistant', '[Run failed]');
       setStatus('error', false);
     });
@@ -191,6 +230,8 @@ async function send() {
       currentMsg = null;
       currentRunId = '';
       sendBtn.disabled = false;
+      updateStepIndicator('', true);
+      stepCurrent = 0; stepMax = 0;
       addMsg('assistant', '[Run cancelled]');
       setStatus('ready', true);
     });
@@ -200,6 +241,8 @@ async function send() {
       currentMsg = null;
       currentRunId = '';
       sendBtn.disabled = false;
+      updateStepIndicator('', true);
+      stepCurrent = 0; stepMax = 0;
       setStatus('ready', true);
     };
 

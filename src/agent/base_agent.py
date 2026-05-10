@@ -18,6 +18,11 @@ if TYPE_CHECKING:
     from .orchestrator import Orchestrator
 
 
+import logging
+
+_log = logging.getLogger("agent")
+
+
 class BaseAgent:
     """ReAct loop 核心。perceive → plan → act → observe 循环。"""
 
@@ -29,6 +34,7 @@ class BaseAgent:
 
     async def run_loop(self) -> Message:
         ctx = self.ctx
+        bus = ctx.services.event_bus
 
         if ctx.user_message:
             self.run_messages.append(ctx.user_message)
@@ -38,6 +44,23 @@ class BaseAgent:
         while True:
             self._check_termination()
 
+            # Publish step start
+            _log.info("Step %s/%s (tokens: %s)", ctx.used_steps + 1,
+                      ctx.spec.max_steps if ctx.spec else "?", ctx.used_tokens)
+            if bus:
+                await bus.publish(Event(
+                    event_id=EVENT_ID(),
+                    type=EventType.STEP_STARTED,
+                    run_id=ctx.run_id,
+                    session_id=ctx.session_id,
+                    user_id=ctx.user_id,
+                    ts=now_ts(),
+                    payload={
+                    "step": ctx.used_steps + 1,
+                    "max_steps": ctx.spec.max_steps if ctx.spec else 0,
+                },
+                ))
+
             # Build prompt — override derive query for this loop
             builder._derive_query = lambda: self._last_user_query()  # type: ignore[method-assign]
             payload = await builder.build(self.run_messages)
@@ -46,6 +69,22 @@ class BaseAgent:
             assistant_msg, tool_calls = await self._stream_llm(payload)
             self.run_messages.append(assistant_msg)
             ctx.used_steps += 1
+
+            # Publish step complete
+            if bus:
+                await bus.publish(Event(
+                    event_id=EVENT_ID(),
+                    type=EventType.STEP_COMPLETED,
+                    run_id=ctx.run_id,
+                    session_id=ctx.session_id,
+                    user_id=ctx.user_id,
+                    ts=now_ts(),
+                    payload={
+                        "step": ctx.used_steps,
+                        "max_steps": ctx.spec.max_steps if ctx.spec else 0,
+                        "tool_calls": [tc.name for tc in tool_calls],
+                    },
+                ))
 
             # Check for termination via final_answer
             final_call = next(
@@ -73,6 +112,7 @@ class BaseAgent:
 
             # Inject tool results
             for r in report.results:
+                _log.info("Tool %s: status=%s", r.name, r.status)
                 tool_msg = Message(
                     role="tool",
                     tool_call_id=r.call_id,
