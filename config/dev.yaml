@@ -1,0 +1,48 @@
+infra:
+  relational:
+    backend: sqlite
+    path: data/sqlite/poppy.db
+  vector:
+    backend: sqlite-vec
+    dim: 1536
+  keyword:
+    backend: fts5
+  blob:
+    backend: filesystem
+    root: data/artifacts
+  cache:
+    backend: memory
+    max_size: 1000
+  eventbus:
+    backend: inproc
+    persist: true
+  jobs: null
+
+llm:
+  providers:
+    deepseek:
+      api_key: "${DEEPSEEK_API_KEY}"
+      base_url: "${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}"
+  default_model: deepseek-chat
+
+embedding:
+  provider: bge
+  model: BAAI/bge-small-zh-v1.5
+  dim: 512
+
+agent:
+  registry_path: src/agents
+  skills_path: src/skills
+  user_skills_path: src/skills-user
+
+gateway:
+  host: "0.0.0.0"
+  port: 8000
+  api_key: ""
+  cors_origins: ["*"]
+
+web_search:
+  provider: tavily
+  tavily_api_key: "${TAVILY_API_KEY:-}"
+
+reranker: null

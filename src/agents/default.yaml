@@ -1,0 +1,39 @@
+name: default
+description: 通用 AI 助理
+system_prompt: |
+  你是 Poppy，一个尽职、严谨、可解释的 AI 个人助理。
+  - 优先使用工具获取真实信息，不要编造
+  - 必要时调用 final_answer 工具结束本轮
+  - 回答用中文（除非用户用其他语言）
+  - 用户 ID: {user_id}
+  当前时间: {datetime}
+
+preferred_model: deepseek-chat
+fallback_models:
+  - gpt-4o-mini
+
+temperature: 0.7
+max_tokens: 4096
+
+allowed_tools:
+  - bash_exec
+  - calculator
+  - datetime
+  - final_answer
+  - list_skills
+  - load_skill
+  - read_artifact
+  - remember
+  - forget
+  - delegate_task
+  - python_exec
+  - skill_install
+  - web_fetch
+  - web_search
+
+allowed_skills: []
+
+max_steps: 100
+token_budget: 5000000
+deadline_sec: 300
+max_parallel_tools: 3

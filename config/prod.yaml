@@ -1,0 +1,62 @@
+infra:
+  relational:
+    backend: postgres
+    host: "${PG_HOST}"
+    port: ${PG_PORT}
+    database: "${PG_DATABASE}"
+    user: "${PG_USER}"
+    password: "${PG_PASSWORD}"
+    pool_min: 2
+    pool_max: 20
+  vector:
+    backend: pgvector
+    dim: 512
+    metric: cosine
+  keyword:
+    backend: pg_tsvector
+    config: zhcfg
+  blob:
+    backend: oss
+    endpoint: "${OSS_ENDPOINT}"
+    bucket: "${OSS_BUCKET}"
+    access_key_id: "${OSS_ACCESS_KEY_ID}"
+    access_key_secret: "${OSS_ACCESS_KEY_SECRET}"
+  cache:
+    backend: redis
+    host: "${REDIS_HOST}"
+    port: ${REDIS_PORT}
+    password: "${REDIS_PASSWORD}"
+  eventbus:
+    backend: inproc
+    persist: true
+  jobs:
+    backend: pg_jobs
+
+llm:
+  providers:
+    deepseek:
+      api_key: "${DEEPSEEK_API_KEY}"
+      base_url: "${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}"
+  default_model: deepseek-chat
+
+agent:
+  registry_path: src/agents
+  skills_path: src/skills
+  user_skills_path: src/skills-user
+
+gateway:
+  host: "0.0.0.0"
+  port: 8000
+  api_key: "${API_KEY}"
+  cors_origins: []
+
+embedding:
+  provider: bge
+  model: BAAI/bge-small-zh-v1.5
+  dim: 512
+
+web_search:
+  provider: tavily
+  tavily_api_key: "${TAVILY_API_KEY:-}"
+
+reranker: null
