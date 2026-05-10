@@ -42,6 +42,40 @@ class KBService:
         self._keyword = keyword
         self._chunker = chunker
 
+    async def init(self) -> None:
+        await self._store.execute("""
+            CREATE TABLE IF NOT EXISTS kb_documents (
+                doc_id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                artifact_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                source_uri TEXT DEFAULT '',
+                tags TEXT DEFAULT '[]',
+                state TEXT DEFAULT 'ingesting',
+                chunk_count INTEGER DEFAULT 0,
+                error TEXT DEFAULT '',
+                created_at REAL NOT NULL DEFAULT 0,
+                updated_at REAL NOT NULL DEFAULT 0,
+                metadata TEXT DEFAULT '{}'
+            )
+        """)
+        await self._store.execute("""
+            CREATE TABLE IF NOT EXISTS kb_chunks (
+                chunk_id TEXT PRIMARY KEY,
+                doc_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                seq INTEGER NOT NULL,
+                text TEXT NOT NULL,
+                token_count INTEGER DEFAULT 0,
+                embedding_model TEXT NOT NULL,
+                char_start INTEGER DEFAULT 0,
+                char_end INTEGER DEFAULT 0,
+                heading_path TEXT DEFAULT '[]',
+                metadata TEXT DEFAULT '{}'
+            )
+        """)
+
     async def add_document(
         self,
         *,

@@ -47,6 +47,44 @@ class ArtifactStore:
         self._event_bus = event_bus
         self._summarizer = summarizer
 
+    async def init(self) -> None:
+        await self._store.execute("""
+            CREATE TABLE IF NOT EXISTS artifacts (
+                artifact_id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                storage_uri TEXT NOT NULL,
+                content_hash TEXT NOT NULL,
+                size_bytes INTEGER NOT NULL,
+                mime_type TEXT NOT NULL,
+                encoding TEXT DEFAULT 'utf-8',
+                summary TEXT DEFAULT '',
+                preview TEXT,
+                source_type TEXT NOT NULL,
+                source_run_id TEXT DEFAULT '',
+                source_session_id TEXT DEFAULT '',
+                source_tool_name TEXT DEFAULT '',
+                source_call_id TEXT DEFAULT '',
+                created_at REAL NOT NULL DEFAULT 0,
+                last_accessed_at REAL NOT NULL DEFAULT 0,
+                access_count INTEGER DEFAULT 0,
+                state TEXT DEFAULT 'active',
+                expires_at REAL,
+                pinned INTEGER DEFAULT 0,
+                title TEXT DEFAULT '',
+                tags TEXT DEFAULT '[]',
+                metadata TEXT DEFAULT '{}'
+            )
+        """)
+        await self._store.execute("""
+            CREATE TABLE IF NOT EXISTS artifact_blob_refs (
+                user_id TEXT NOT NULL,
+                content_hash TEXT NOT NULL,
+                storage_uri TEXT NOT NULL,
+                refcount INTEGER NOT NULL DEFAULT 1,
+                PRIMARY KEY (user_id, content_hash)
+            )
+        """)
+
     async def save(
         self,
         *,

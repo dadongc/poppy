@@ -58,6 +58,31 @@ class MemoryService:
         self._llm = llm
         self._extractor = extractor
 
+    async def init(self) -> None:
+        await self._store.execute("""
+            CREATE TABLE IF NOT EXISTS memory_records (
+                memory_id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                content TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                source_run_id TEXT DEFAULT '',
+                source_session_id TEXT DEFAULT '',
+                created_at REAL NOT NULL DEFAULT 0,
+                updated_at REAL NOT NULL DEFAULT 0,
+                last_recalled_at REAL,
+                occurred_at REAL,
+                confidence REAL DEFAULT 1.0,
+                importance REAL DEFAULT 0.5,
+                recall_count INTEGER DEFAULT 0,
+                state TEXT DEFAULT 'active',
+                related_memory_ids TEXT DEFAULT '[]',
+                artifact_refs TEXT DEFAULT '[]',
+                tags TEXT DEFAULT '[]',
+                metadata TEXT DEFAULT '{}'
+            )
+        """)
+
     # ------------------------------------------------------------------
     # remember
     # ------------------------------------------------------------------

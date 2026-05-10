@@ -25,7 +25,23 @@ class InProcessEventBus:
         self._closed = False
 
     async def init(self) -> None:
-        pass
+        if self._persist and self._store:
+            await self._store.execute("""
+                CREATE TABLE IF NOT EXISTS events (
+                    event_id TEXT PRIMARY KEY,
+                    type TEXT NOT NULL,
+                    run_id TEXT NOT NULL,
+                    parent_run_id TEXT DEFAULT '',
+                    session_id TEXT DEFAULT '',
+                    user_id TEXT DEFAULT '',
+                    trace_id TEXT DEFAULT '',
+                    ts REAL NOT NULL,
+                    seq INTEGER NOT NULL DEFAULT 0,
+                    payload TEXT DEFAULT '{}',
+                    level TEXT DEFAULT 'info',
+                    scope TEXT DEFAULT 'public'
+                )
+            """)
 
     async def publish(self, event: Event) -> None:
         if self._closed:
@@ -41,7 +57,7 @@ class InProcessEventBus:
             event.ts = now_ts()
 
         if self._persist and self._store:
-            asyncio.create_task(self._persist_event(event))
+            await self._persist_event(event)
 
         for sub in list(self._subs):
             if sub.matches(event):
@@ -79,7 +95,7 @@ class InProcessEventBus:
         return _SubContext(self, filter or {})
 
     async def replay(self, run_id: str, since_seq: int = 0) -> AsyncIterator[Event]:
-        if not self._store:
+        if not self._persist or not self._store:
             return
 
         rows = await self._store.fetch_all(

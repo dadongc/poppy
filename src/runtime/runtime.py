@@ -114,13 +114,14 @@ class Runtime:
         for r in active_runs:
             await self._runs.cancel(r.run_id)
 
-        try:
-            await asyncio.wait(self._workers, timeout=timeout)
-        except TimeoutError:
-            pass
+        if self._workers:
+            try:
+                await asyncio.wait(self._workers, timeout=timeout)
+            except TimeoutError:
+                pass
 
-        for w in self._workers:
-            w.cancel()
+            for w in self._workers:
+                w.cancel()
 
         await self._bus.shutdown()
         await self._infra.relational.close()
@@ -168,12 +169,16 @@ class Runtime:
         return run_id
 
     async def _run_with_lifecycle(self, orch: Orchestrator, ctx: AgentContext) -> None:
+        import logging
+        _log = logging.getLogger("runtime")
+
         try:
             await orch.run()
         except asyncio.CancelledError:
             await self._runs.update_state(ctx.run_id, "cancelled")
-        except Exception:
-            await self._runs.update_state(ctx.run_id, "failed")
+        except Exception as exc:
+            _log.exception("Run %s failed", ctx.run_id)
+            await self._runs.update_state(ctx.run_id, "failed", error=str(exc)[:500])
 
     async def wait_run(self, run_id: str, timeout: float = 300.0) -> None:
         """Wait for a run to reach terminal state."""

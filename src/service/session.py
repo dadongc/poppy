@@ -89,6 +89,39 @@ class SessionService:
         self._jobs = jobs
         self._llm = llm
 
+    async def init(self) -> None:
+        await self._store.execute("""
+            CREATE TABLE IF NOT EXISTS sessions (
+                session_id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                title TEXT DEFAULT '',
+                created_at REAL NOT NULL DEFAULT 0,
+                last_active_at REAL NOT NULL DEFAULT 0,
+                message_count INTEGER DEFAULT 0,
+                summary TEXT DEFAULT '',
+                summary_covers_until_seq INTEGER DEFAULT 0,
+                metadata TEXT DEFAULT '{}'
+            )
+        """)
+        await self._store.execute("""
+            CREATE TABLE IF NOT EXISTS session_messages (
+                msg_id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                seq INTEGER NOT NULL,
+                run_id TEXT DEFAULT '',
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                tool_calls TEXT DEFAULT '[]',
+                tool_call_id TEXT DEFAULT '',
+                name TEXT DEFAULT '',
+                artifact_refs TEXT DEFAULT '[]',
+                created_at REAL NOT NULL DEFAULT 0,
+                metadata TEXT DEFAULT '{}',
+                UNIQUE(session_id, seq)
+            )
+        """)
+
     # ------------------------------------------------------------------
     # create / get / list
     # ------------------------------------------------------------------

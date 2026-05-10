@@ -108,6 +108,12 @@ async def build_services(
         store=infra.relational,
     )
 
+    # Init service tables (CREATE TABLE IF NOT EXISTS)
+    await session.init()
+    await artifact.init()
+    await memory.init()
+    await kb.init()
+
     return Services(
         session=session,
         memory=memory,

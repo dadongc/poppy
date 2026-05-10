@@ -32,7 +32,7 @@ _TS_FLOOR = 1_000_000_000.0  # Unix timestamps are > 2001; scores/counts are not
 def _pg_params(params: tuple[Any, ...]) -> tuple[Any, ...]:
     """Convert float Unix timestamps to datetime for PostgreSQL TIMESTAMPTZ columns."""
     return tuple(
-        datetime.datetime.fromtimestamp(p, tz=datetime.timezone.utc)
+        datetime.datetime.fromtimestamp(p, tz=datetime.UTC)
         if isinstance(p, float) and p > _TS_FLOOR
         else p
         for p in params

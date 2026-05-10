@@ -15,7 +15,7 @@ infra:
     max_size: 1000
   eventbus:
     backend: inproc
-    persist: false
+    persist: true
   jobs: null
 
 llm:
