@@ -119,7 +119,7 @@ class AgentSpec:
 
     # 预算控制
     max_steps: int = 20             # ReAct 迭代上限
-    token_budget: int = 50000       # 累计 token 预算
+    token_budget: int = 5000000       # 累计 token 预算
     deadline_sec: int = 180         # 单次 run 最长时间
     max_parallel_tools: int = 3     # 单步内并发工具数
 

@@ -107,6 +107,7 @@ class BaseAgent:
 
         text_parts: list[str] = []
         tool_calls_buf: dict[int, ToolCall] = {}
+        errors: list[str] = []
 
         async for chunk in llm.stream(payload, ctx):
             if chunk.type == "text_delta":
@@ -150,11 +151,26 @@ class BaseAgent:
             elif chunk.type == "usage" and chunk.usage:
                 ctx.used_tokens += chunk.usage.total_tokens
             elif chunk.type == "error":
-                pass
+                err = chunk.error
+                if err:
+                    errors.append(f"[{err.type}] {err.message}")
+                if bus:
+                    await bus.publish(Event(
+                        event_id=EVENT_ID(),
+                        type=EventType.LLM_ERROR,
+                        run_id=ctx.run_id,
+                        session_id=ctx.session_id,
+                        user_id=ctx.user_id,
+                        ts=now_ts(),
+                        payload={"error_type": err.type if err else "unknown",
+                                 "message": err.message if err else ""},
+                    ))
             elif chunk.type == "stop":
                 pass
 
         full_text = "".join(text_parts)
+        if errors and not full_text and not tool_calls_buf:
+            full_text = f"调用模型时发生错误: {'; '.join(errors)}"
         tcs = sorted(tool_calls_buf.values(), key=lambda x: x.call_id)
         msg = Message(
             role="assistant",

@@ -52,7 +52,7 @@ class ContextBuilder:
         )
 
         role = self._build_role()
-        manifest = self._build_manifest()
+        manifest = await self._build_manifest()
         env = self._build_env()
         current = self._build_current(run_messages)
 
@@ -75,7 +75,7 @@ class ContextBuilder:
 
     def _allocate_budget(self) -> dict[str, int]:
         spec = self.spec
-        total = spec.token_budget if spec else 50000
+        total = spec.token_budget if spec else 5000000
         output_reserved = spec.max_tokens if spec else 4096
         input_budget = int((total - output_reserved) * 0.9)
 
@@ -97,7 +97,7 @@ class ContextBuilder:
 
     def _total_input_budget(self) -> int:
         spec = self.spec
-        total = spec.token_budget if spec else 50000
+        total = spec.token_budget if spec else 5000000
         output_reserved = spec.max_tokens if spec else 4096
         return int((total - output_reserved) * 0.9)
 
@@ -113,7 +113,7 @@ class ContextBuilder:
             datetime=now_str,
         )
 
-    def _build_manifest(self) -> str:
+    async def _build_manifest(self) -> str:
         tool_svc = self.services.tool
         lines = ["## 可用工具"]
         if tool_svc and self.spec:
@@ -122,6 +122,20 @@ class ContextBuilder:
                 lines.append(f"- **{t.name}**: {t.description}")
 
         skill_svc = self.services.skill
+        if skill_svc and self.spec:
+            try:
+                available = await skill_svc.list()
+            except Exception:
+                available = []
+            if available:
+                lines.append("")
+                lines.append("## 可用技能（通过 load_skill 加载，用 list_skills 查看详情）")
+                for s in available[:10]:
+                    source = "内置" if s.source_kind == "builtin" else "用户"
+                    lines.append(f"- **{s.name}** [{source}]: {s.description}")
+                if len(available) > 10:
+                    lines.append(f"- ...共 {len(available)} 个 skill，用 list_skills 工具查看全部")
+
         loaded = self.ctx.extra_inputs.get("loaded_skills", [])
         if loaded and skill_svc:
             lines.append("")

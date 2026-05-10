@@ -84,7 +84,7 @@ class TestAgentSpec:
         spec = AgentSpec(name="test-agent")
         assert spec.name == "test-agent"
         assert spec.max_steps == 20
-        assert spec.token_budget == 50000
+        assert spec.token_budget == 5000000
         assert spec.allowed_tools == set()
 
     def test_custom_budget(self):

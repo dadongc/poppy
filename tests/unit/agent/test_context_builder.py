@@ -82,7 +82,7 @@ class TestContextBuilder:
         ctx = _make_ctx()
         ctx.services.tool = tool_registry
         cb = ContextBuilder(ctx)
-        manifest = cb._build_manifest()
+        manifest = await cb._build_manifest()
         assert "final_answer" in manifest
 
     @pytest.mark.asyncio

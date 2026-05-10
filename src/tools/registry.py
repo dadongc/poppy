@@ -18,6 +18,7 @@ class ToolRegistry:
         from src.tools.builtin.delegate_task import DelegateTaskTool
         from src.tools.builtin.final_answer import FinalAnswerTool
         from src.tools.builtin.forget import ForgetTool
+        from src.tools.builtin.list_skills import ListSkillsTool
         from src.tools.builtin.load_skill import LoadSkillTool
         from src.tools.builtin.python_exec import PythonExecTool
         from src.tools.builtin.read_artifact import ReadArtifactTool
@@ -30,6 +31,7 @@ class ToolRegistry:
             CalculatorTool,
             DateTimeTool,
             FinalAnswerTool,
+            ListSkillsTool,
             LoadSkillTool,
             DelegateTaskTool,
             PythonExecTool,

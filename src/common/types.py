@@ -61,7 +61,7 @@ class AgentSpec:
     allowed_tools: set[str] = field(default_factory=set)
     allowed_skills: set[str] = field(default_factory=set)
     max_steps: int = 20
-    token_budget: int = 50000
+    token_budget: int = 5000000
     deadline_sec: int = 180
     max_parallel_tools: int = 3
     max_sub_agent_depth: int = 3
