@@ -41,4 +41,8 @@ gateway:
   api_key: ""
   cors_origins: ["*"]
 
+web_search:
+  provider: tavily
+  tavily_api_key: "${TAVILY_API_KEY:-}"
+
 reranker: null

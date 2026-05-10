@@ -55,4 +55,8 @@ embedding:
   model: BAAI/bge-small-zh-v1.5
   dim: 512
 
+web_search:
+  provider: tavily
+  tavily_api_key: "${TAVILY_API_KEY:-}"
+
 reranker: null

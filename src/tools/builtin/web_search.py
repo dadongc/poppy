@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from src.common.types import ToolResult
 
 MAX_RESULTS = 10
@@ -23,10 +25,10 @@ class WebSearchTool:
                 "default": 5,
                 "description": "返回结果的最大数量（默认 5，最多 10）",
             },
-            "time_limit": {
+            "search_depth": {
                 "type": "string",
-                "enum": ["d", "w", "m", "y"],
-                "description": "时间限制: d=一天, w=一周, m=一月, y=一年",
+                "enum": ["basic", "advanced"],
+                "description": "搜索深度: basic=快速, advanced=深入（默认 basic）",
             },
         },
         "required": ["query"],
@@ -39,26 +41,29 @@ class WebSearchTool:
     async def execute(self, ctx, args):
         query = args["query"]
         max_results = min(args.get("max_results", 5), MAX_RESULTS)
-        time_limit = args.get("time_limit")
+        search_depth = args.get("search_depth", "basic")
+
+        api_key = os.environ.get("TAVILY_API_KEY", "")
+        if not api_key:
+            return ToolResult(
+                call_id="",
+                name=self.name,
+                status="error",
+                error_message="TAVILY_API_KEY not configured. Set it in .env or environment.",
+            )
 
         try:
-            from duckduckgo_search import DDGS
+            from tavily import TavilyClient
 
-            results = []
-            with DDGS() as ddgs:
-                for r in ddgs.text(
-                    keywords=query,
-                    max_results=max_results,
-                    timelimit=time_limit,
-                ):
-                    results.append(
-                        {
-                            "title": r.get("title", ""),
-                            "href": r.get("href", ""),
-                            "body": r.get("body", ""),
-                        }
-                    )
+            client = TavilyClient(api_key=api_key)
+            response = client.search(
+                query=query,
+                max_results=max_results,
+                search_depth=search_depth,
+                include_answer=search_depth == "advanced",
+            )
 
+            results = response.get("results", [])
             if not results:
                 return ToolResult(
                     call_id="",
@@ -68,10 +73,16 @@ class WebSearchTool:
                 )
 
             lines = []
+            answer = response.get("answer", "")
+            if answer:
+                lines.append(f"**摘要**: {answer}")
+                lines.append("")
+
             for i, r in enumerate(results):
-                lines.append(f"{i + 1}. {r['title']}")
-                lines.append(f"   URL: {r['href']}")
-                lines.append(f"   {r['body']}")
+                lines.append(f"{i + 1}. {r.get('title', '')}")
+                lines.append(f"   URL: {r.get('url', '')}")
+                content = r.get("content", "")
+                lines.append(f"   {content}")
                 lines.append("")
 
             return ToolResult(
@@ -79,7 +90,15 @@ class WebSearchTool:
                 name=self.name,
                 status="ok",
                 content="\n".join(lines).strip(),
-                metadata={"results": results},
+                metadata={
+                    "results": [
+                        {"title": r.get("title", ""), "url": r.get("url", ""),
+                         "content": r.get("content", ""), "score": r.get("score", 0)}
+                        for r in results
+                    ],
+                    "answer": answer,
+                    "response_time": response.get("response_time", 0),
+                },
             )
         except Exception as e:
             return ToolResult(
