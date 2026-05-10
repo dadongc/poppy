@@ -16,6 +16,7 @@ temperature: 0.7
 max_tokens: 4096
 
 allowed_tools:
+  - bash_exec
   - calculator
   - datetime
   - final_answer

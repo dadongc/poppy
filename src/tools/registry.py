@@ -13,6 +13,7 @@ class ToolRegistry:
         self._tools: dict[str, Tool] = {}
 
     async def load_builtins(self) -> None:
+        from src.tools.builtin.bash_exec import BashExecTool
         from src.tools.builtin.calculator import CalculatorTool
         from src.tools.builtin.datetime_tool import DateTimeTool
         from src.tools.builtin.delegate_task import DelegateTaskTool
@@ -28,6 +29,7 @@ class ToolRegistry:
         from src.tools.builtin.web_search import WebSearchTool
 
         for cls in [
+            BashExecTool,
             CalculatorTool,
             DateTimeTool,
             FinalAnswerTool,

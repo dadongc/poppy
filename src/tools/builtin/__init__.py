@@ -1,3 +1,4 @@
+from src.tools.builtin.bash_exec import BashExecTool
 from src.tools.builtin.calculator import CalculatorTool
 from src.tools.builtin.datetime_tool import DateTimeTool
 from src.tools.builtin.delegate_task import DelegateTaskTool
@@ -13,6 +14,7 @@ from src.tools.builtin.web_fetch import WebFetchTool
 from src.tools.builtin.web_search import WebSearchTool
 
 __all__ = [
+    "BashExecTool",
     "CalculatorTool",
     "DateTimeTool",
     "DelegateTaskTool",
