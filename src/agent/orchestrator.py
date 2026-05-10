@@ -71,6 +71,33 @@ class Orchestrator:
             if run_registry:
                 await run_registry.update_state(ctx.run_id, "cancelled")
             raise
+        except Exception as exc:
+            # Publish RUN_FAILED so SSE can close properly
+            error_msg = str(exc)[:500]
+            if bus:
+                await bus.publish(Event(
+                    event_id=EVENT_ID(),
+                    type=EventType.RUN_FAILED,
+                    run_id=ctx.run_id,
+                    session_id=ctx.session_id,
+                    user_id=ctx.user_id,
+                    ts=now_ts(),
+                    payload={
+                        "error": error_msg,
+                        "used_tokens": ctx.used_tokens,
+                        "used_steps": ctx.used_steps,
+                    },
+                ))
+            if run_registry:
+                await run_registry.update_state(
+                    ctx.run_id, "failed",
+                    error=error_msg,
+                    used_tokens=ctx.used_tokens,
+                    used_steps=ctx.used_steps,
+                )
+            # Persist partial messages even on failure
+            await self._persist_run_messages()
+            raise
 
         # Persist messages
         await self._persist_run_messages()

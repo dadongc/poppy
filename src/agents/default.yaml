@@ -32,7 +32,7 @@ allowed_tools:
 
 allowed_skills: []
 
-max_steps: 20
+max_steps: 100
 token_budget: 5000000
 deadline_sec: 300
 max_parallel_tools: 3
