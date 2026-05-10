@@ -25,7 +25,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 .msg.user { align-self: flex-end; background: #0f3460; }
 .msg.assistant { align-self: flex-start; background: #16213e; border: 1px solid #0f3460; }
 .msg.tool { align-self: flex-start; background: #1a1a2e; border: 1px dashed #333; font-size: 12px; color: #aaa; }
+.msg.tool.hidden { display: none; }
 .msg .label { font-size: 11px; color: #4ecca3; margin-bottom: 4px; }
+#tool-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #888; cursor: pointer; user-select: none; }
+#tool-toggle input { cursor: pointer; }
 #input-area { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid #0f3460; background: #16213e; }
 #input-area textarea { flex: 1; background: #1a1a2e; border: 1px solid #0f3460; color: #eee;
                         border-radius: 8px; padding: 10px; font-size: 14px; resize: none;
@@ -42,7 +45,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 <body>
 <div id="header">
   <span>Poppy Chat</span>
-  <span class="status" id="status">connecting...</span>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <label id="tool-toggle"><input type="checkbox" onchange="toggleTools(this.checked)">显示工具调用</label>
+    <span class="status" id="status">connecting...</span>
+  </div>
 </div>
 <div id="messages"></div>
 <div id="input-area">
@@ -61,9 +67,18 @@ let sessionId = '';
 let currentRunId = '';
 let currentMsg = null;
 
+let showTools = false;
+
 function setStatus(text, online) {
   statusEl.textContent = text;
   statusEl.className = 'status' + (online ? ' online' : '');
+}
+
+function toggleTools(show) {
+  showTools = show;
+  document.querySelectorAll('.msg.tool').forEach(el => {
+    el.classList.toggle('hidden', !show);
+  });
 }
 
 async function init() {
@@ -86,6 +101,7 @@ function addMsg(role, content, cls) {
   el.className = 'msg ' + (cls || role);
   if (role === 'tool') {
     el.innerHTML = '<div class="label">' + content[0] + '</div>' + content[1];
+    if (!showTools) el.classList.add('hidden');
   } else {
     el.textContent = content;
   }
