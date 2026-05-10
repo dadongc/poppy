@@ -186,9 +186,11 @@ async function send() {
       }
     });
 
-    es.addEventListener('llm.tool_call_start', e => {
+    es.addEventListener('llm.tool_call_end', e => {
       const data = JSON.parse(e.data);
-      addMsg('tool', ['Tool: ' + (data.payload.name || '?'), JSON.stringify(data.payload.arguments || {}, null, 2)]);
+      const args = data.payload.arguments || {};
+      const preview = Object.keys(args).length ? JSON.stringify(args, null, 2) : '';
+      addMsg('tool', ['Tool: ' + (data.payload.name || '?'), preview]);
     });
 
     es.addEventListener('tool.completed', e => {

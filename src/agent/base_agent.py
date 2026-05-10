@@ -188,6 +188,20 @@ class BaseAgent:
                 if chunk.tool_call_index in tool_calls_buf:
                     tc = tool_calls_buf[chunk.tool_call_index]
                     tc.arguments = chunk.arguments_full or _parse_json(tc.arguments_raw)
+                    if bus:
+                        await bus.publish(Event(
+                            event_id=EVENT_ID(),
+                            type=EventType.LLM_TOOL_CALL_END,
+                            run_id=ctx.run_id,
+                            session_id=ctx.session_id,
+                            user_id=ctx.user_id,
+                            ts=now_ts(),
+                            payload={
+                                "call_id": tc.call_id,
+                                "name": tc.name,
+                                "arguments": tc.arguments,
+                            },
+                        ))
             elif chunk.type == "usage" and chunk.usage:
                 ctx.used_tokens += chunk.usage.total_tokens
             elif chunk.type == "error":
