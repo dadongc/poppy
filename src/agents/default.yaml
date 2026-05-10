@@ -25,6 +25,7 @@ allowed_tools:
   - forget
   - delegate_task
   - python_exec
+  - skill_install
   - web_fetch
   - web_search
 

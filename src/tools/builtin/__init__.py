@@ -7,6 +7,7 @@ from src.tools.builtin.load_skill import LoadSkillTool
 from src.tools.builtin.python_exec import PythonExecTool
 from src.tools.builtin.read_artifact import ReadArtifactTool
 from src.tools.builtin.remember import RememberTool
+from src.tools.builtin.skill_install import SkillInstallTool
 from src.tools.builtin.web_fetch import WebFetchTool
 from src.tools.builtin.web_search import WebSearchTool
 
@@ -20,6 +21,7 @@ __all__ = [
     "PythonExecTool",
     "ReadArtifactTool",
     "RememberTool",
+    "SkillInstallTool",
     "WebFetchTool",
     "WebSearchTool",
 ]

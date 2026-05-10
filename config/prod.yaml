@@ -42,6 +42,7 @@ llm:
 agent:
   registry_path: src/agents
   skills_path: src/skills
+  user_skills_path: src/skills-user
 
 gateway:
   host: "0.0.0.0"

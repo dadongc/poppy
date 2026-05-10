@@ -74,7 +74,10 @@ class Runtime:
         await tool_registry.load_builtins()
 
         # Skill registry
-        skill_registry = SkillRegistry(skills_path=cfg.agent.skills_path)
+        skill_registry = SkillRegistry(
+            skills_path=cfg.agent.skills_path,
+            user_skills_path=cfg.agent.user_skills_path,
+        )
         await skill_registry.load()
 
         # Run registry
