@@ -42,7 +42,7 @@ class WebSearchTool:
         time_limit = args.get("time_limit")
 
         try:
-            from duckduckgo_search import  
+            from duckduckgo_search import DDGS
 
             results = []
             with DDGS() as ddgs:
