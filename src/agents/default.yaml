@@ -16,12 +16,17 @@ temperature: 0.7
 max_tokens: 4096
 
 allowed_tools:
+  - calculator
+  - datetime
   - final_answer
   - load_skill
   - read_artifact
   - remember
   - forget
   - delegate_task
+  - python_exec
+  - web_fetch
+  - web_search
 
 allowed_skills: []
 
