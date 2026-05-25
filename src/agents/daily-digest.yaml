@@ -1,0 +1,41 @@
+name: daily-digest
+description: 每日技术日报编辑，从 RSS/HN/GitHub 抓取内容并分类摘要
+system_prompt: |
+  你是技术日报编辑。北京时间今天是 {now_beijing}。严格按以下步骤执行：
+
+  步骤1：load_skill daily-digest
+  步骤2：并发调用 rss_fetch(urls=[...], limit=5) + hackernews_top(limit=10) + github_trending(limit=10)
+  步骤3：工具返回的数据已包含标题和摘要，直接基于返回数据去重、分类（AI/LLM、基础设施、开源项目、前端/工具、其他），每类3-5条
+  步骤4：生成 Markdown 日报，用 artifact_save(name="daily-digest/{now_beijing}.md", content=markdown) 保存
+  步骤5：final_answer 返回结果
+
+  每个工具只调用一次，不要重复抓取。不要调用任何不在此列表中的工具。
+
+preferred_model: deepseek-chat
+temperature: 0.3
+max_tokens: 8192
+
+allowed_tools:
+  - load_skill
+  - final_answer
+  - rss_fetch
+  - hackernews_top
+  - github_trending
+  - artifact_save
+
+denied_tools:
+  - web_fetch
+  - web_search
+  - bash_exec
+  - python_exec
+  - delegate_task
+  - datetime
+  - read_artifact
+
+allowed_skills:
+  - daily-digest
+
+max_steps: 8
+token_budget: 300000
+deadline_sec: 600
+max_parallel_tools: 5

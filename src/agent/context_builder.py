@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
+from zoneinfo import ZoneInfo
 
 from src.common.types import PromptPayload, RetrievalQuery
 
@@ -106,18 +107,21 @@ class ContextBuilder:
     def _build_role(self) -> str:
         template = (self.spec.system_prompt if self.spec and self.spec.system_prompt
                     else DEFAULT_SYSTEM_PROMPT)
-        now_str = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
+        now_utc = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
+        now_beijing = datetime.now(tz=ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d")
         return template.format(
             agent_name=self.spec.name if self.spec else "Poppy",
             user_id=self.ctx.user_id,
-            datetime=now_str,
+            datetime=now_utc,
+            now_beijing=now_beijing,
         )
 
     async def _build_manifest(self) -> str:
         tool_svc = self.services.tool
+        extra = self.ctx.extra_inputs.get("active_custom_tools", set())
         lines = ["## 可用工具"]
         if tool_svc and self.spec:
-            tools = tool_svc.list_for_agent(self.spec)
+            tools = tool_svc.list_for_agent(self.spec, extra_tools=extra)
             for t in tools:
                 lines.append(f"- **{t.name}**: {t.description}")
 
@@ -323,7 +327,8 @@ class ContextBuilder:
         tool_svc = self.services.tool
         if not tool_svc or not self.spec:
             return []
-        tools = tool_svc.list_for_agent(self.spec)
+        extra = self.ctx.extra_inputs.get("active_custom_tools", set())
+        tools = tool_svc.list_for_agent(self.spec, extra_tools=extra)
         return [
             {
                 "type": "function",

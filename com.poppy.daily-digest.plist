@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.poppy.daily-digest</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/bytedance/code/github.com/dadongc/poppy/.venv/bin/python</string>
+        <string>-m</string>
+        <string>src.runtime.cli</string>
+        <string>--agent</string>
+        <string>daily-digest</string>
+        <string>--message</string>
+        <string>生成今日技术日报</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/bytedance/code/github.com/dadongc/poppy</string>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>8</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/Users/bytedance/code/github.com/dadongc/poppy/data/launchd-stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/bytedance/code/github.com/dadongc/poppy/data/launchd-stderr.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>CONFIG_PATH</key>
+        <string>config/dev.yaml</string>
+        <key>PYTHONUNBUFFERED</key>
+        <string>1</string>
+    </dict>
+</dict>
+</plist>

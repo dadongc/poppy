@@ -12,7 +12,7 @@ from starlette.responses import JSONResponse
 from src.gateway.errors import register_exception_handlers
 from src.gateway.middleware.access_log import AccessLogMiddleware
 from src.gateway.middleware.trace_id import TraceIdMiddleware
-from src.gateway.routes import agents, artifacts, chat, kb, memory, runs, sessions
+from src.gateway.routes import agents, artifacts, chat, digest, kb, memory, runs, sessions
 
 logger = logging.getLogger("gateway")
 
@@ -62,6 +62,7 @@ def create_app() -> FastAPI:
     app.include_router(kb.router, prefix="/api/kb", tags=["kb"])
     app.include_router(agents.router, prefix="/api/agents", tags=["agents"])
     app.include_router(chat.router, tags=["chat"])
+    app.include_router(digest.router, tags=["digest"])
 
     return app
 

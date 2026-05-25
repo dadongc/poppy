@@ -38,6 +38,12 @@ class LoadSkillTool:
         loaded: list = ctx.extra_inputs.setdefault("loaded_skills", [])
         if skill not in loaded:
             loaded.append(skill)
+
+        # 记录 skill 声明的 custom tools，context builder 和权限检查会用到
+        all_tools = set(skill.required_tools) | set(skill.optional_tools)
+        active: set = ctx.extra_inputs.setdefault("active_custom_tools", set())
+        active.update(all_tools)
+
         return ToolResult(
             call_id="",
             name=self.name,

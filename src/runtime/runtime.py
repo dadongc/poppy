@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 from typing import TYPE_CHECKING
 
@@ -23,6 +24,8 @@ from src.tools.registry import ToolRegistry
 
 if TYPE_CHECKING:
     pass
+
+logger = logging.getLogger("runtime")
 
 
 class Runtime:
@@ -50,6 +53,7 @@ class Runtime:
         self._bus = infra.eventbus
         self._config = config
         self._workers: list[asyncio.Task] = []
+        self._scheduler = None
         self._shutdown_event = asyncio.Event()
 
     @classmethod
@@ -72,6 +76,7 @@ class Runtime:
         # Tool registry
         tool_registry = ToolRegistry()
         await tool_registry.load_builtins()
+        await tool_registry.load_from_dir("src/tools/custom")
 
         # Skill registry
         skill_registry = SkillRegistry(
@@ -102,6 +107,16 @@ class Runtime:
             config=cfg,
         )
         cls._instance = rt
+
+        # Scheduler
+        from src.runtime.scheduler import DailyDigestScheduler
+
+        if cfg.scheduler and cfg.scheduler.enabled:
+            rt._scheduler = DailyDigestScheduler(runtime=rt, config=cfg.scheduler)
+            rt._scheduler.start()
+        else:
+            logger.info("Scheduler not configured or disabled")
+
         return rt
 
     @classmethod
@@ -125,6 +140,9 @@ class Runtime:
 
             for w in self._workers:
                 w.cancel()
+
+        if self._scheduler:
+            await self._scheduler.stop()
 
         await self._bus.shutdown()
         await self._infra.relational.close()
@@ -172,16 +190,15 @@ class Runtime:
         return run_id
 
     async def _run_with_lifecycle(self, orch: Orchestrator, ctx: AgentContext) -> None:
-        import logging
-        _log = logging.getLogger("runtime")
-
         try:
             await orch.run()
-        except asyncio.CancelledError:
-            await self._runs.update_state(ctx.run_id, "cancelled")
         except Exception as exc:
+            _log = logging.getLogger("runtime")
             _log.exception("Run %s failed", ctx.run_id)
-            await self._runs.update_state(ctx.run_id, "failed", error=str(exc)[:500])
+            try:
+                await self._runs.update_state(ctx.run_id, "failed", error=str(exc)[:500])
+            except Exception:
+                pass
 
     async def wait_run(self, run_id: str, timeout: float = 300.0) -> None:
         """Wait for a run to reach terminal state."""

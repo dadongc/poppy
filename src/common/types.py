@@ -59,6 +59,7 @@ class AgentSpec:
     temperature: float = 0.7
     max_tokens: int = 4096
     allowed_tools: set[str] = field(default_factory=set)
+    denied_tools: set[str] = field(default_factory=set)
     allowed_skills: set[str] = field(default_factory=set)
     max_steps: int = 20
     token_budget: int = 5000000

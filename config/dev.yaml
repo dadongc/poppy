@@ -46,3 +46,11 @@ web_search:
   tavily_api_key: "${TAVILY_API_KEY:-}"
 
 reranker: null
+
+scheduler:
+  enabled: true
+  cron: "0 8 * * *"
+  agent: daily-digest
+  message: "生成今日技术日报"
+  user_id: scheduler
+  timezone: Asia/Shanghai

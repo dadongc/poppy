@@ -29,7 +29,6 @@ class TestToolExecutor:
         executor = ToolExecutor(agent_ctx, FakeOrchestrator())
         calls = [ToolCall(call_id="c1", name="nonexistent", arguments={})]
         report = await executor.execute(calls)
-        # Not in allowed_tools → permission denied
         assert report.results[0].status == "denied"
 
     @pytest.mark.asyncio
@@ -42,9 +41,11 @@ class TestToolExecutor:
 
     @pytest.mark.asyncio
     async def test_permission_denied(self, agent_ctx):
+        """custom 工具不在 allowed_tools 也不在 active_custom_tools 时拒绝。"""
+        await agent_ctx.services.tool.load_from_dir("src/tools/custom")
         agent_ctx.spec.allowed_tools = {"remember"}
         executor = ToolExecutor(agent_ctx, FakeOrchestrator())
-        calls = [ToolCall(call_id="c1", name="final_answer", arguments={"answer": "nope"})]
+        calls = [ToolCall(call_id="c1", name="rss_fetch", arguments={"urls": ["x"]})]
         report = await executor.execute(calls)
         assert report.results[0].status == "denied"
 
