@@ -151,9 +151,9 @@ class TestSchedulerLifecycle:
         tz = ZoneInfo("Asia/Shanghai")
         s._now = lambda: datetime(2026, 5, 25, 7, 0, tzinfo=tz)  # type: ignore[assignment]
         s.start()
-        # 不应该立即触发（还要等到 8:00）
         await asyncio.sleep(0.1)
         await s.stop()
+        assert rt.trigger_count == 0
 
     @pytest.mark.asyncio
     async def test_stop_cancels_task(self, enabled_config: SchedulerConfig) -> None:

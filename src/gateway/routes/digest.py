@@ -106,15 +106,7 @@ async def list_digests(runtime: Runtime = Depends(get_runtime)) -> HTMLResponse:
     if svc is None:
         raise HTTPException(500, "artifact service not available")
 
-    rows = await svc._store.fetch_all(
-        """SELECT a.artifact_id, a.title, a.created_at, a.size_bytes FROM artifacts a
-           INNER JOIN (
-               SELECT title, MAX(created_at) as max_ts FROM artifacts
-               WHERE title LIKE 'daily-digest/%' AND size_bytes > 1000
-               GROUP BY title
-           ) b ON a.title = b.title AND a.created_at = b.max_ts
-           ORDER BY a.created_at DESC LIMIT 30"""
-    )
+    rows = await svc.list_digests()
 
     items = ""
     for r in rows:
@@ -149,9 +141,10 @@ async def view_digest(
     if svc is None:
         raise HTTPException(500, "artifact service not available")
 
+    scheduler_uid = runtime._config.scheduler.user_id if runtime._config.scheduler else "scheduler"
     meta = None
     text = None
-    for uid in (user_id, "scheduler"):
+    for uid in {user_id, scheduler_uid}:
         try:
             meta = await svc.get_metadata(artifact_id, user_id=uid)
             text = await svc.get_text(artifact_id, user_id=uid)

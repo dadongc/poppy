@@ -21,11 +21,9 @@ daily-digest Agent (ReAct Loop)
     ├── 加载 daily-digest Skill (日报指令 + 数据源列表)
     │   └── load_skill 自动激活 skill 声明的 custom tools
     │
-    ├── rss_fetch(urls=[...])     ← 并发抓 RSS
-    ├── hackernews_top(limit=15)  ← HN 热门
+    ├── rss_fetch(urls=[...])     ← 并发抓 RSS（数据直接返回在 content）
+    ├── hackernews_top(limit=10)  ← HN 热门
     ├── github_trending(limit=10) ← GitHub Trending
-    ├── web_fetch(url)            ← 已有: 读原文
-    ├── web_search(query)         ← 已有: 搜索补充
     └── artifact_save(name, content) ← 保存日报
 ```
 
@@ -125,12 +123,13 @@ pyproject.toml                     ← feedparser, croniter
 ```yaml
 # daily-digest.md frontmatter
 name: daily-digest
-required_tools: [web_fetch, web_search]
+required_tools: []
 optional_tools: [rss_fetch, hackernews_top, github_trending, artifact_save]
 agent_profile:
   temperature: 0.3
   max_steps: 15
   token_budget: 32000
+  deadline_sec: 300
 ```
 
 指令正文：
@@ -146,20 +145,29 @@ agent_profile:
 # daily-digest.yaml
 name: daily-digest
 system_prompt: 你是技术日报编辑
-preferred_model: ${DIGEST_MODEL:-deepseek-chat}
+preferred_model: deepseek-chat
 temperature: 0.3
 allowed_tools:
   - load_skill
+  - final_answer
   - rss_fetch
   - hackernews_top
   - github_trending
   - artifact_save
+denied_tools:
   - web_fetch
   - web_search
+  - bash_exec
+  - python_exec
+  - delegate_task
+  - datetime
+  - read_artifact
 allowed_skills:
   - daily-digest
-max_steps: 15
-token_budget: 32000
+max_steps: 8
+token_budget: 300000
+deadline_sec: 600
+max_parallel_tools: 5
 ```
 
 ---
@@ -240,7 +248,9 @@ launchctl unload ~/Library/LaunchAgents/com.poppy.daily-digest.plist
 ```
 
 调度策略：
-- launchd 每天 8:00 触发 CLI 生成日报（电脑开着时）
+- **launchd** 每天 8:00 触发 CLI 生成日报（用于 headless 模式，电脑开着时）
+- **进程内 Scheduler** 每天 8:00 通过 croniter 触发（用于 Gateway 运行时）
+- **二者互斥**：launchd 和进程内 scheduler 不要同时启用，否则会重复生成
 - Scheduler 启动时追补：如果今天的触发时间已过，自动补触发一次
 - 手动触发：`python -m src.runtime.cli --agent daily-digest --message "..."`
 
@@ -250,5 +260,5 @@ launchctl unload ~/Library/LaunchAgents/com.poppy.daily-digest.plist
 
 ```toml
 "feedparser>=6.0",    # RSS/Atom 解析
-"croniter>=2.0",      # Cron 表达式解析
+"croniter>=6.0",      # Cron 表达式解析
 ```

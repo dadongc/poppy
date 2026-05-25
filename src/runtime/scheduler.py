@@ -76,19 +76,23 @@ class DailyDigestScheduler:
         logger.info("Scheduler next run: %s", next_run.isoformat())
 
         while not self._stop.is_set():
-            now = self._now()
-            if now >= next_run:
-                await self._trigger()
+            try:
                 now = self._now()
-                next_run = self._next_trigger(now)
-                logger.info("Scheduler next run: %s", next_run.isoformat())
+                if now >= next_run:
+                    await self._trigger()
+                    now = self._now()
+                    next_run = self._next_trigger(now)
+                    logger.info("Scheduler next run: %s", next_run.isoformat())
 
-            wait_sec = (next_run - self._now()).total_seconds()
-            if wait_sec > 0:
-                try:
-                    await asyncio.wait_for(self._stop.wait(), timeout=min(wait_sec, 60))
-                except TimeoutError:
-                    pass
+                wait_sec = (next_run - self._now()).total_seconds()
+                if wait_sec > 0:
+                    try:
+                        await asyncio.wait_for(self._stop.wait(), timeout=min(wait_sec, 60))
+                    except TimeoutError:
+                        pass
+            except Exception:
+                logger.exception("Scheduler loop error, will retry in 60s")
+                await asyncio.wait_for(self._stop.wait(), timeout=60)
 
     def start(self) -> None:
         """启动后台调度任务。"""
