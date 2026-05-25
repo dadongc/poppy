@@ -103,10 +103,20 @@ class ToolExecutor:
 
     async def _check_permission(self, call: ToolCall) -> None:
         spec = self.ctx.spec
-        if spec and call.name not in spec.allowed_tools:
+        # 明确禁止的工具直接拒绝
+        if spec and spec.denied_tools and call.name in spec.denied_tools:
             raise PermissionDeniedError(
-                f"agent '{spec.name}' not allowed to call '{call.name}'"
+                f"agent '{spec.name}' is denied from calling '{call.name}'"
             )
+        if spec and spec.allowed_tools and call.name not in spec.allowed_tools:
+            tool = self.services.tool.get(call.name) if self.services.tool else None
+            if tool is not None and tool.is_builtin:
+                return
+            active_custom = self.ctx.extra_inputs.get("active_custom_tools", set())
+            if call.name not in active_custom:
+                raise PermissionDeniedError(
+                    f"agent '{spec.name}' not allowed to call '{call.name}'"
+                )
 
     def _lookup(self, name: str) -> Tool:
         tool = self.services.tool.get(name) if self.services.tool else None

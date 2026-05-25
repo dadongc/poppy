@@ -229,6 +229,20 @@ class ArtifactStore:
             self._extract_key_from_uri(artifact.storage_uri), expires_in
         )
 
+    async def list_digests(self, limit: int = 30) -> list[dict]:
+        """列出每日日报 artifact（按日期去重，取最新）。"""
+        rows = await self._store.fetch_all(
+            """SELECT a.artifact_id, a.title, a.created_at, a.size_bytes FROM artifacts a
+               INNER JOIN (
+                   SELECT title, MAX(created_at) as max_ts FROM artifacts
+                   WHERE title LIKE 'daily-digest/%' AND size_bytes > 1000
+                   GROUP BY title
+               ) b ON a.title = b.title AND a.created_at = b.max_ts
+               ORDER BY a.created_at DESC LIMIT ?""",
+            limit,
+        )
+        return [dict(r) for r in rows]
+
     async def update(
         self,
         artifact_id: str,

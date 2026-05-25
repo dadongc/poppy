@@ -58,19 +58,22 @@ class Orchestrator:
         try:
             final = await self._agent.run_loop()
         except asyncio.CancelledError:
-            if bus:
-                await bus.publish(Event(
-                    event_id=EVENT_ID(),
-                    type=EventType.RUN_CANCELLED,
-                    run_id=ctx.run_id,
-                    session_id=ctx.session_id,
-                    user_id=ctx.user_id,
-                    ts=now_ts(),
-                    payload={},
-                ))
-            if run_registry:
-                await run_registry.update_state(ctx.run_id, "cancelled")
-            raise
+            try:
+                if bus:
+                    await bus.publish(Event(
+                        event_id=EVENT_ID(),
+                        type=EventType.RUN_CANCELLED,
+                        run_id=ctx.run_id,
+                        session_id=ctx.session_id,
+                        user_id=ctx.user_id,
+                        ts=now_ts(),
+                        payload={},
+                    ))
+                if run_registry:
+                    await run_registry.update_state(ctx.run_id, "cancelled")
+            except Exception:
+                pass
+            return Message(role="assistant", content="[Run cancelled]", created_at=now_ts())
         except Exception as exc:
             # Publish RUN_FAILED so SSE can close properly
             error_msg = str(exc)[:500]
@@ -339,9 +342,10 @@ class Orchestrator:
         if suffix_parts:
             system_prompt += "\n\n" + "\n\n".join(suffix_parts)
 
-        # Intersect with parent's allowed sets
+        # Intersect with parent's allowed sets, but preserve skill-activated custom tools
         if parent_spec:
-            merged_tools &= parent_spec.allowed_tools
+            active_custom = self._ctx.extra_inputs.get("active_custom_tools", set())
+            merged_tools = (merged_tools & parent_spec.allowed_tools) | (merged_tools & active_custom)
             merged_skills &= parent_spec.allowed_skills
 
         return AgentSpec(

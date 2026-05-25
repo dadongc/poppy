@@ -99,9 +99,28 @@ python -m src.gateway.app
 
 ---
 
+## 每日技术日报
+
+Poppy 内置了一个 `daily-digest` Agent，每天早上 8:00（北京时间）自动生成技术日报：
+
+- **数据源**：15 个技术博客 RSS（OpenAI、Anthropic、DeepMind、Cloudflare 等）+ Hacker News + GitHub Trending
+- **自动分类**：LLM 将文章归入 AI/LLM、基础设施、开源项目、前端/工具等类别，每类 3-5 条
+- **持久化**：日报保存为 Markdown Artifact，可通过 `/digest` 页面随时查阅
+- **定时调度**：基于 launchd（macOS）或 cron，支持开机追补（错过 8:00 自动补跑）
+
+```bash
+# 手动生成日报
+python -m src.runtime.cli --agent daily-digest --message "生成今日技术日报"
+
+# 查看日报列表
+open http://localhost:8000/digest
+```
+
+---
+
 ## 内建工具
 
-Poppy 出厂自带 14 个工具，覆盖日常 AI 助理场景：
+Poppy 出厂自带 18 个工具，覆盖日常 AI 助理场景：
 
 | 工具 | 用途 | 特色 |
 |---|---|---|
@@ -120,6 +139,15 @@ Poppy 出厂自带 14 个工具，覆盖日常 AI 助理场景：
 | `remember` | 保存记忆 | 写入长期记忆库 |
 | `forget` | 删除记忆 | 从记忆库中移除 |
 
+### Custom 工具（Skill 按需加载）
+
+| 工具 | 用途 | 所属 Skill |
+|---|---|---|
+| `rss_fetch` | 并发抓取 RSS/Atom 源 | daily-digest |
+| `hackernews_top` | Hacker News 热门文章 | daily-digest |
+| `github_trending` | GitHub Trending 仓库 | daily-digest |
+| `artifact_save` | 保存内容为 Artifact | daily-digest |
+
 ---
 
 ## Skill 系统
@@ -130,6 +158,12 @@ Skill 是以 **Markdown 文件** 定义的 Agent 行为扩展。双路径加载�
 src/skills/           ← 内建技能（随项目发布）
 src/skills-user/      ← 用户技能（你安装的，同名覆盖内建）
 ```
+
+**内建 Skill**：
+
+| Skill | 用途 |
+|---|---|
+| `daily-digest` | 每日技术日报，从 RSS/HN/GitHub 抓取并分类摘要 |
 
 **安装方式**：通过聊天界面让 Agent 执行 `skill_install` 工具，指定 URL 即可。
 

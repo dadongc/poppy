@@ -183,8 +183,8 @@ class TestOrchestrator:
 
         orch._agent = CancellingAgent(ctx, orch)
 
-        with pytest.raises(asyncio.CancelledError):
-            await orch.run()
+        result = await orch.run()
+        assert result.content == "[Run cancelled]"
 
         event_types = [e.type for e in bus.events]
         assert EventType.RUN_CANCELLED in event_types

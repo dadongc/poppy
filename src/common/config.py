@@ -39,6 +39,15 @@ class GatewayConfig(BaseModel):
     cors_origins: list[str] = []
 
 
+class SchedulerConfig(BaseModel):
+    enabled: bool = True
+    cron: str = "0 8 * * *"
+    agent: str = "daily-digest"
+    message: str = "生成今日技术日报"
+    user_id: str = "scheduler"
+    timezone: str = "Asia/Shanghai"
+
+
 class AppConfig(BaseModel):
     infra: InfraConfig
     llm: LLMConfig
@@ -46,6 +55,7 @@ class AppConfig(BaseModel):
     gateway: GatewayConfig
     embedding: dict
     reranker: dict | None = None
+    scheduler: SchedulerConfig | None = None
 
 
 def _resolve_env(value: str) -> str:

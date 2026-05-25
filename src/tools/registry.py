@@ -7,7 +7,7 @@ from .protocol import Tool
 
 
 class ToolRegistry:
-    """工具注册表。管理内建工具 + 用户自定义工具。"""
+    """工具注册表。所有工具启动时加载，构建上下文时按 builtin + allowed 过滤。"""
 
     def __init__(self) -> None:
         self._tools: dict[str, Tool] = {}
@@ -48,7 +48,8 @@ class ToolRegistry:
             self._tools[t.name] = t
 
     async def load_from_dir(self, path: str) -> None:
-        p = Path(path)
+        """从目录加载所有工具到 _tools。"""
+        p = Path(path).resolve()
         if not p.exists():
             return
         for f in p.rglob("*.py"):
@@ -64,11 +65,18 @@ class ToolRegistry:
     def get(self, name: str) -> Tool | None:
         return self._tools.get(name)
 
-    def list_for_agent(self, spec) -> list[Tool]:
-        allowed = spec.allowed_tools if hasattr(spec, "allowed_tools") else set()
+    def list_for_agent(self, spec, extra_tools: set[str] | None = None) -> list[Tool]:
+        allowed = set(spec.allowed_tools) if hasattr(spec, "allowed_tools") else set()
+        if extra_tools:
+            allowed = allowed | extra_tools
         if not allowed:
             return list(self._tools.values())
-        return [t for n, t in self._tools.items() if n in allowed]
+        # builtin 工具始终可见；custom 工具必须在 allowed 或 extra_tools 中
+        denied = getattr(spec, "denied_tools", set()) or set()
+        return [
+            t for n, t in self._tools.items()
+            if (n in allowed or t.is_builtin) and n not in denied
+        ]
 
     def list_all(self) -> list[Tool]:
         return list(self._tools.values())
