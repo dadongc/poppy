@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from starlette.responses import JSONResponse
 
 from src.gateway.errors import register_exception_handlers
@@ -63,6 +64,13 @@ def create_app() -> FastAPI:
     app.include_router(agents.router, prefix="/api/agents", tags=["agents"])
     app.include_router(chat.router, tags=["chat"])
     app.include_router(digest.router, tags=["digest"])
+
+    # 前端静态页面
+    _static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "static")
+    try:
+        app.mount("/ui", StaticFiles(directory=_static_dir, html=True), name="ui")
+    except RuntimeError:
+        logger.warning("static/ directory not found at %s, UI not mounted", _static_dir)
 
     return app
 

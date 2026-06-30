@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memory Viewer — Poppy</title>
+<style>
+  :root {
+    --bg: #f8f9fa;
+    --card-bg: #fff;
+    --text: #212529;
+    --text-muted: #6c757d;
+    --border: #dee2e6;
+    --accent: #4f46e5;
+    --danger: #dc3545;
+    --radius: 8px;
+    --shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
+  }
+  header h1 { font-size: 1.5rem; font-weight: 700; }
+  .token-box { display: flex; gap: 8px; align-items: center; }
+  .token-box input {
+    padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius);
+    font-size: .8rem; width: 180px;
+  }
+
+  /* toolbar */
+  .toolbar {
+    display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;
+  }
+  .toolbar select, .toolbar input, .toolbar button {
+    padding: 7px 12px; border: 1px solid var(--border); border-radius: var(--radius);
+    font-size: .85rem; background: var(--card-bg);
+  }
+  .toolbar button {
+    cursor: pointer; background: var(--accent); color: #fff; border-color: var(--accent);
+    font-weight: 500; transition: opacity .15s;
+  }
+  .toolbar button:hover { opacity: .85; }
+  .toolbar button.danger { background: var(--danger); border-color: var(--danger); }
+  .toolbar .spacer { flex: 1; }
+
+  /* stats */
+  .stats { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stat {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 10px 16px; box-shadow: var(--shadow);
+  }
+  .stat .label { font-size: .75rem; color: var(--text-muted); }
+  .stat .value { font-size: 1.2rem; font-weight: 700; }
+
+  /* memory list */
+  .mem-list { display: flex; flex-direction: column; gap: 10px; }
+  .mem-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 18px; box-shadow: var(--shadow);
+    transition: box-shadow .15s;
+  }
+  .mem-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+  .mem-card .row1 {
+    display: flex; gap: 10px; align-items: center; margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .mem-card .content {
+    font-size: .92rem; margin-bottom: 10px; white-space: pre-wrap;
+    word-break: break-word; max-height: 120px; overflow-y: auto;
+  }
+  .mem-card .content.expanded { max-height: none; }
+  .mem-card .content-toggle {
+    font-size: .78rem; color: var(--accent); cursor: pointer; user-select: none;
+    margin-bottom: 8px; display: inline-block;
+  }
+  .mem-card .meta {
+    display: flex; gap: 12px; flex-wrap: wrap; font-size: .75rem; color: var(--text-muted);
+    align-items: center;
+  }
+  .mem-card .actions { margin-left: auto; display: flex; gap: 6px; }
+  .mem-card .actions button {
+    font-size: .72rem; padding: 3px 10px; border-radius: var(--radius);
+    border: 1px solid var(--border); cursor: pointer; background: #fff;
+    transition: all .15s;
+  }
+  .mem-card .actions button.del:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+  /* badges */
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 12px;
+    font-size: .72rem; font-weight: 600; text-transform: uppercase;
+  }
+  .badge-kind { background: #e0e7ff; color: #3730a3; }
+  .badge-active { background: #d1fae5; color: #065f46; }
+  .badge-contradicted { background: #fef3c7; color: #92400e; }
+  .badge-stale { background: #f3f4f6; color: #4b5563; }
+  .badge-deleted { background: #fee2e2; color: #991b1b; }
+
+  /* empty / loading */
+  .empty { text-align: center; padding: 48px 0; color: var(--text-muted); }
+  .spinner {
+    width: 32px; height: 32px; border: 3px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin .6s linear infinite; margin: 24px auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* toast */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; padding: 10px 18px;
+    border-radius: var(--radius); color: #fff; font-size: .85rem;
+    z-index: 1000; animation: fadeIn .2s; box-shadow: 0 4px 12px rgba(0,0,0,.2);
+  }
+  .toast-ok { background: #059669; }
+  .toast-err { background: var(--danger); }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* recall section */
+  .recall-section {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px; margin-bottom: 24px;
+    box-shadow: var(--shadow);
+  }
+  .recall-section h2 { font-size: 1rem; margin-bottom: 10px; }
+  .recall-form { display: flex; gap: 8px; }
+  .recall-form input { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); }
+  .recall-form button { padding: 8px 16px; }
+
+  /* pagination */
+  .pagination {
+    display: flex; gap: 8px; justify-content: center; margin-top: 20px; align-items: center;
+  }
+  .pagination button { padding: 6px 14px; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; background: var(--card-bg); }
+  .pagination button:disabled { opacity: .4; cursor: default; }
+  .pagination .page-info { font-size: .85rem; color: var(--text-muted); }
+
+  /* tabs */
+  .tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid var(--border); }
+  .tabs button {
+    padding: 8px 20px; border: none; background: none; cursor: pointer;
+    font-size: .9rem; color: var(--text-muted); border-bottom: 2px solid transparent;
+    margin-bottom: -2px; transition: all .15s;
+  }
+  .tabs button.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🧠 Memory Viewer</h1>
+    <div class="token-box">
+      <input id="tokenInput" placeholder="Bearer token (dev: anything)" value="dev-token">
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="active" data-tab="list">列表浏览</button>
+    <button data-tab="recall">语义召回</button>
+  </div>
+
+  <!-- Tab: List -->
+  <div id="tabList">
+    <div class="toolbar">
+      <select id="kindFilter">
+        <option value="">全部类型</option>
+        <option value="profile">profile</option>
+        <option value="preference">preference</option>
+        <option value="fact">fact</option>
+        <option value="event">event</option>
+        <option value="episode">episode</option>
+        <option value="task">task</option>
+        <option value="reminder">reminder</option>
+        <option value="skill_note">skill_note</option>
+        <option value="relation">relation</option>
+      </select>
+      <select id="stateFilter">
+        <option value="active">active</option>
+        <option value="contradicted">contradicted</option>
+        <option value="stale">stale</option>
+        <option value="deleted">deleted</option>
+      </select>
+      <input id="userIdInput" placeholder="user_id" value="cli-user" style="width:140px" list="userIdList">
+<datalist id="userIdList"><option value="cli-user"><option value="scheduler"><option value="default"></datalist>
+      <button id="loadBtn">加载</button>
+      <span class="spacer"></span>
+      <button id="refreshBtn" style="background:#fff;color:var(--text);border-color:var(--border);">刷新统计</button>
+    </div>
+
+    <div class="stats" id="statsBar"></div>
+    <div class="mem-list" id="memList"></div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+
+  <!-- Tab: Recall -->
+  <div id="tabRecall" style="display:none">
+    <div class="recall-section">
+      <div class="recall-form">
+        <input id="recallQuery" placeholder="输入查询，如：用户喜欢什么编程语言" value="">
+        <select id="recallKind" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);">
+          <option value="">全部类型</option>
+          <option value="profile">profile</option>
+          <option value="preference">preference</option>
+          <option value="fact">fact</option>
+          <option value="event">event</option>
+          <option value="task">task</option>
+        </select>
+        <input id="recallTopK" type="number" value="10" min="1" max="50" style="width:70px;padding:8px;border:1px solid var(--border);border-radius:var(--radius);">
+        <button id="recallBtn">搜索</button>
+      </div>
+    </div>
+    <div class="mem-list" id="recallResults"></div>
+  </div>
+</div>
+
+<script>
+// ---- state ----
+let currentTab = 'list';
+let cursorStack = [];
+let currentCursor = null;
+let lastParams = {};
+
+// ---- helpers ----
+function token() {
+  return document.getElementById('tokenInput').value || 'dev-token';
+}
+
+function api(path) {
+  const sep = path.includes('?') ? '&' : '?';
+  return path; // relative, same origin
+}
+
+async function apiFetch(path, opts = {}) {
+  const headers = {
+    'Authorization': `Bearer ${token()}`,
+    'Content-Type': 'application/json',
+    ...(opts.headers || {}),
+  };
+  const res = await fetch(path, { ...opts, headers });
+  if (!res.ok) {
+    const body = await res.text();
+    let msg = `${res.status} ${res.statusText}`;
+    try { msg = JSON.parse(body).detail || msg; } catch {}
+    throw new Error(msg);
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+function tsToStr(ts) {
+  if (!ts || ts === 0) return '-';
+  return new Date(ts * 1000).toLocaleString('zh-CN');
+}
+
+function kindBadge(kind) {
+  return `<span class="badge badge-kind">${esc(kind)}</span>`;
+}
+
+function stateBadge(state) {
+  return `<span class="badge badge-${state}">${esc(state)}</span>`;
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function showToast(msg, ok = true) {
+  const el = document.createElement('div');
+  el.className = `toast ${ok ? 'toast-ok' : 'toast-err'}`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2800);
+}
+
+// ---- list ----
+async function loadList(cursor = null) {
+  const listEl = document.getElementById('memList');
+  listEl.innerHTML = '<div class="spinner"></div>';
+
+  const kind = document.getElementById('kindFilter').value;
+  const state = document.getElementById('stateFilter').value;
+  const userId = document.getElementById('userIdInput').value || 'default';
+  const limit = 30;
+
+  let url = `/api/memory/items?user_id=${encodeURIComponent(userId)}&state=${encodeURIComponent(state)}&limit=${limit}`;
+  if (kind) url += `&kind=${encodeURIComponent(kind)}`;
+  if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+
+  lastParams = { kind, state, userId, limit };
+
+  try {
+    const data = await apiFetch(url);
+    renderList(data.items, data.next_cursor);
+  } catch (e) {
+    listEl.innerHTML = `<div class="empty">加载失败: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderList(items, nextCursor) {
+  const listEl = document.getElementById('memList');
+  if (!items || items.length === 0) {
+    listEl.innerHTML = '<div class="empty">暂无记忆记录</div>';
+    document.getElementById('pagination').innerHTML = '';
+    document.getElementById('statsBar').innerHTML = '';
+    return;
+  }
+
+  listEl.innerHTML = items.map(m => {
+    const truncated = m.content.length > 300;
+    const displayContent = truncated ? m.content.slice(0, 300) : m.content;
+    const mid = m.memory_id;
+    return `
+    <div class="mem-card" id="card-${mid}">
+      <div class="row1">
+        ${kindBadge(m.kind)} ${stateBadge(m.state)}
+        <span style="font-size:.75rem;color:var(--text-muted);font-family:monospace;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(m.memory_id)}">${esc(m.memory_id)}</span>
+        <div class="actions">
+          <button class="del" onclick="deleteMem('${esc(m.memory_id)}')">删除</button>
+        </div>
+      </div>
+      <div class="content" id="content-${mid}">${esc(displayContent)}</div>
+      ${truncated ? `<span class="content-toggle" onclick="toggleContent('${mid}', '${esc(m.content.replace(/'/g, "\\'").replace(/\n/g, '\\n'))}')">展开全部 (${m.content.length} 字) ▼</span>` : ''}
+      <div class="meta">
+        <span>重要性: <strong>${m.importance.toFixed(2)}</strong></span>
+        <span>置信度: <strong>${m.confidence.toFixed(2)}</strong></span>
+        <span>召回次数: ${m.recall_count}</span>
+        <span>来源: ${esc(m.source_type)}</span>
+        <span>创建: ${tsToStr(m.created_at)}</span>
+        <span>更新: ${tsToStr(m.updated_at)}</span>
+        ${m.tags && m.tags.length > 0 ? `<span>🏷 ${esc(m.tags.join(', '))}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  // pagination
+  const pageEl = document.getElementById('pagination');
+  pageEl.innerHTML = '';
+  if (cursorStack.length > 0) {
+    const prev = document.createElement('button');
+    prev.textContent = '← 上一页';
+    prev.onclick = () => {
+      const prevCursor = cursorStack.pop();
+      currentCursor = prevCursor;
+      loadList(currentCursor);
+    };
+    pageEl.appendChild(prev);
+  }
+  if (nextCursor) {
+    const next = document.createElement('button');
+    next.textContent = '下一页 →';
+    next.onclick = () => {
+      cursorStack.push(currentCursor);
+      currentCursor = nextCursor;
+      loadList(currentCursor);
+    };
+    pageEl.appendChild(next);
+  }
+  const info = document.createElement('span');
+  info.className = 'page-info';
+  info.textContent = `${items.length} 条记录`;
+  pageEl.appendChild(info);
+
+  // quick stats
+  const kinds = {}, states = {};
+  items.forEach(m => { kinds[m.kind] = (kinds[m.kind]||0)+1; states[m.state] = (states[m.state]||0)+1; });
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat"><span class="label">本页</span><span class="value">${items.length}</span></div>
+    ${Object.entries(kinds).map(([k,v]) => `<div class="stat"><span class="label">${esc(k)}</span><span class="value">${v}</span></div>`).join('')}
+  `;
+}
+
+function toggleContent(mid, full) {
+  const el = document.getElementById('content-' + mid);
+  const toggle = el.nextElementSibling;
+  if (el.classList.contains('expanded')) {
+    el.classList.remove('expanded');
+    el.textContent = full.slice(0, 300);
+    toggle.innerHTML = '展开全部 (' + full.length + ' 字) ▼';
+  } else {
+    el.classList.add('expanded');
+    el.textContent = full;
+    toggle.innerHTML = '收起 ▲';
+  }
+}
+
+async function deleteMem(memoryId) {
+  if (!confirm('确认删除 ' + memoryId + ' ?')) return;
+  const userId = document.getElementById('userIdInput').value || 'default';
+  try {
+    await apiFetch(`/api/memory/items/${encodeURIComponent(memoryId)}?user_id=${encodeURIComponent(userId)}`, { method: 'DELETE' });
+    showToast('已删除');
+    const card = document.getElementById('card-' + memoryId);
+    if (card) card.style.opacity = '0.3';
+  } catch (e) {
+    showToast('删除失败: ' + e.message, false);
+  }
+}
+
+// ---- recall ----
+async function doRecall() {
+  const resultsEl = document.getElementById('recallResults');
+  resultsEl.innerHTML = '<div class="spinner"></div>';
+
+  const query = document.getElementById('recallQuery').value.trim();
+  if (!query) { resultsEl.innerHTML = '<div class="empty">请输入查询</div>'; return; }
+
+  const userId = document.getElementById('userIdInput').value || 'default';
+  const kinds = document.getElementById('recallKind').value;
+  const topK = parseInt(document.getElementById('recallTopK').value) || 10;
+
+  try {
+    const data = await apiFetch('/api/memory/recall', {
+      method: 'POST',
+      body: JSON.stringify({
+        query, top_k: topK, kinds: kinds ? kinds.split(',') : null,
+      }),
+    });
+    if (!data.items || data.items.length === 0) {
+      resultsEl.innerHTML = '<div class="empty">无相关记忆</div>';
+      return;
+    }
+    // reuse renderList without pagination
+    const listEl = document.getElementById('recallResults');
+    listEl.innerHTML = data.items.map(m => {
+      const mid = m.memory_id;
+      return `
+      <div class="mem-card">
+        <div class="row1">
+          ${kindBadge(m.kind)} ${stateBadge(m.state)}
+          <span style="font-size:.75rem;color:var(--text-muted);font-family:monospace;">${esc(m.memory_id)}</span>
+        </div>
+        <div class="content" style="max-height:none">${esc(m.content)}</div>
+        <div class="meta">
+          <span>重要性: <strong>${m.importance.toFixed(2)}</strong></span>
+          <span>置信度: <strong>${m.confidence.toFixed(2)}</strong></span>
+          <span>召回次数: ${m.recall_count}</span>
+          <span>创建: ${tsToStr(m.created_at)}</span>
+          ${m.tags && m.tags.length > 0 ? `<span>🏷 ${esc(m.tags.join(', '))}</span>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    resultsEl.innerHTML = `<div class="empty">搜索失败: ${esc(e.message)}</div>`;
+  }
+}
+
+// ---- tabs ----
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.tabs button[data-tab="${tab}"]`).classList.add('active');
+  document.getElementById('tabList').style.display = tab === 'list' ? 'block' : 'none';
+  document.getElementById('tabRecall').style.display = tab === 'recall' ? 'block' : 'none';
+  if (tab === 'list' && document.getElementById('memList').children.length === 0) {
+    loadList();
+  }
+}
+
+// ---- events ----
+document.getElementById('loadBtn').addEventListener('click', () => { cursorStack = []; currentCursor = null; loadList(); });
+document.getElementById('refreshBtn').addEventListener('click', () => loadList(currentCursor));
+document.getElementById('recallBtn').addEventListener('click', doRecall);
+document.getElementById('recallQuery').addEventListener('keydown', e => { if (e.key === 'Enter') doRecall(); });
+document.querySelectorAll('.tabs button').forEach(b => {
+  b.addEventListener('click', () => switchTab(b.dataset.tab));
+});
+
+// ---- init ----
+loadList();
+</script>
+</body>
+</html>

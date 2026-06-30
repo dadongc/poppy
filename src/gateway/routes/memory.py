@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from src.gateway.deps import auth_user_id, get_runtime
 from src.gateway.schemas import (
@@ -16,17 +16,25 @@ from src.runtime.runtime import Runtime
 router = APIRouter()
 
 
+def _effective_user(auth_user: str, override: str | None) -> str:
+    """允许 query param 覆盖 auth user_id（调试/管理用）。"""
+    return override or auth_user
+
+
 @router.post("/items", response_model=MemoryItemOut, status_code=201)
 async def remember_explicit(
     body: RememberIn,
-    user_id: str = Depends(auth_user_id),
+    request: Request,
+    auth_user: str = Depends(auth_user_id),
     runtime: Runtime = Depends(get_runtime),
+    user_id: str | None = Query(default=None),
 ) -> MemoryItemOut:
     svc = runtime.services.memory
     if svc is None:
         raise HTTPException(500, "memory service not available")
+    effective = _effective_user(auth_user, user_id)
     record = await svc.remember(
-        user_id=user_id,
+        user_id=effective,
         kind=body.kind,
         content=body.content,
         importance=body.importance,
@@ -40,26 +48,31 @@ async def remember_explicit(
 @router.delete("/items/{memory_id}", status_code=204)
 async def forget(
     memory_id: str,
-    user_id: str = Depends(auth_user_id),
+    request: Request,
+    auth_user: str = Depends(auth_user_id),
     runtime: Runtime = Depends(get_runtime),
+    user_id: str | None = Query(default=None),
 ) -> None:
     svc = runtime.services.memory
     if svc is None:
         raise HTTPException(500, "memory service not available")
-    await svc.forget(memory_id, user_id=user_id)
+    await svc.forget(memory_id, user_id=_effective_user(auth_user, user_id))
 
 
 @router.post("/recall", response_model=RecallOut)
 async def recall(
     body: RecallIn,
-    user_id: str = Depends(auth_user_id),
+    request: Request,
+    auth_user: str = Depends(auth_user_id),
     runtime: Runtime = Depends(get_runtime),
+    user_id: str | None = Query(default=None),
 ) -> RecallOut:
     svc = runtime.services.memory
     if svc is None:
         raise HTTPException(500, "memory service not available")
+    effective = _effective_user(auth_user, user_id)
     items = await svc.recall(
-        user_id=user_id,
+        user_id=effective,
         query=body.query,
         top_k=body.top_k,
         kinds=body.kinds,
@@ -69,8 +82,10 @@ async def recall(
 
 @router.get("/items", response_model=ListMemoryOut)
 async def list_memories(
-    user_id: str = Depends(auth_user_id),
+    request: Request,
+    auth_user: str = Depends(auth_user_id),
     runtime: Runtime = Depends(get_runtime),
+    user_id: str | None = Query(default=None),
     kind: str | None = Query(default=None),
     state: str = Query(default="active"),
     limit: int = Query(default=50, ge=1, le=200),
@@ -79,8 +94,9 @@ async def list_memories(
     svc = runtime.services.memory
     if svc is None:
         raise HTTPException(500, "memory service not available")
+    effective = _effective_user(auth_user, user_id)
     items = await svc.list_(
-        user_id=user_id,
+        user_id=effective,
         kind=kind,
         state=state,
         limit=limit,
